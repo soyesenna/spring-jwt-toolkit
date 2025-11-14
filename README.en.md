@@ -13,6 +13,7 @@ Whether you are building a stateless API gateway or a monolithic web app, the to
 - **Spring Boot auto-configuration** – drop the dependency and start injecting the one-stop `JwtToolKit` bean immediately.
 - **ObjectMapper management** – ships with a Jackson instance that auto-discovers modules, so Java Time and other modern types just work.
 - **Test-friendly design** – simple APIs, no static singletons, and in-memory stubs included for unit testing.
+- **Fine-grained error reporting** – expired tokens raise `JwtExpiredException`, while malformed ones trigger `JwtInvalidException`.
 
 ---
 
@@ -89,6 +90,16 @@ Call `jwtToolKit.extract(...)` inside your authentication filter or provider to 
 | `jwt.refresh.key` | HMAC key used for refresh tokens. | _required_ |
 | `jwt.refresh.validity` | Validity of refresh tokens (`Duration`). | `PT0S` |
 | `jwt.use-jpa` | Enables entity lookup via `EntityManager` using `@Id`. | `false` |
+
+---
+
+## ⚠️ Error Handling
+
+| Exception | When it happens |
+| --- | --- |
+| `JwtExpiredException` | Token signature is valid but the `exp` claim is in the past. |
+| `JwtInvalidException` | Signature/structure is invalid or verification fails for other reasons. |
+| `JwtProcessingException` | Generic processing error (e.g., null subject during generation). |
 
 When `jwt.use-jpa=true`, the toolkit:
 

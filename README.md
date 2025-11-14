@@ -15,6 +15,7 @@ JWT 생성과 검증을 간결하게 만들어 주는 Spring Boot 전용 라이�
 - **Spring Boot 자동 구성** – 의존성만 추가하면 원스톱 `JwtToolKit` 빈을 바로 주입 가능.
 - **ObjectMapper 자동 관리** – 모듈 자동 탐색으로 Java Time 등을 별도 설정 없이 처리.
 - **테스트 친화적 구조** – 간단한 API, stubs 제공, 정적 의존성 없음.
+- **구체적인 예외 구분** – 만료 토큰(`JwtExpiredException`)과 잘못된 토큰(`JwtInvalidException`)을 별도 예외로 구분.
 
 ---
 
@@ -90,6 +91,16 @@ class AuthController {
 | `jwt.refresh.key` | 리프레시 토큰 서명 키. | 필수 |
 | `jwt.refresh.validity` | 리프레시 토큰 유효 시간. | `PT0S` |
 | `jwt.use-jpa` | `EntityManager`를 통한 엔티티 조회 활성화. | `false` |
+
+---
+
+## ⚠️ 에러 처리
+
+| 예외 | 발생 시점 |
+| --- | --- |
+| `JwtExpiredException` | 서명은 유효하지만 `exp` 클레임이 현재 시각보다 과거인 경우 |
+| `JwtInvalidException` | 서명 검증 실패, 구조가 잘못된 JWT 등 |
+| `JwtProcessingException` | 토큰 생성 시 subject가 null 등 기타 처리 오류 |
 
 `jwt.use-jpa=true`일 때 수행되는 단계:
 
