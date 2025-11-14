@@ -36,39 +36,41 @@ public class JwtExtractor {
     Assert.notNull(tokenType, "tokenType must not be null");
     Assert.notNull(modelClass, "modelClass must not be null");
 
-    Claims claims = parseClaims(token, tokenType);
+    Claims claims = this.parseClaims(token, tokenType);
     JwtModelMetadata metadata = this.metadataRegistry.getMetadata(modelClass);
     Object body = metadata.createInstance();
 
     Field subjectField = metadata.getSubjectField(tokenType);
     if (subjectField != null) {
-      Object convertedSubject = convertValue(claims.getSubject(), subjectField.getType());
+      Object convertedSubject = this.convertValue(claims.getSubject(), subjectField.getType());
       ReflectionUtils.setField(subjectField, body, convertedSubject);
     }
 
     for (JwtClaimFieldMetadata claimMetadata : metadata.getClaimFields(tokenType)) {
       Object value = claims.get(claimMetadata.claimName());
       if (value != null) {
-        Object converted = convertValue(value, claimMetadata.field().getType());
+        Object converted = this.convertValue(value, claimMetadata.field().getType());
         ReflectionUtils.setField(claimMetadata.field(), body, converted);
       }
     }
 
-    Object resolvedBody = resolveBody(modelClass, metadata, body);
+    Object resolvedBody = this.resolveBody(modelClass, metadata, body);
     return new JwtExtractionResult<>(
-        token, tokenType, claims, modelClass.cast(resolvedBody));
+        token, tokenType, claims, modelClass.cast(resolvedBody)
+    );
   }
 
   private Claims parseClaims(String token, TokenType tokenType) {
     try {
       return Jwts.parser()
-          .verifyWith(tokenSettingsProvider.getSigningKey(tokenType))
+          .verifyWith(this.tokenSettingsProvider.getSigningKey(tokenType))
           .build()
           .parseSignedClaims(token)
           .getPayload();
     } catch (JwtException ex) {
       throw new JwtProcessingException(
-          "Failed to parse %s token: %s".formatted(tokenType, ex.getMessage()), ex);
+          "Failed to parse %s token: %s".formatted(tokenType, ex.getMessage()), ex
+      );
     }
   }
 
@@ -86,21 +88,22 @@ public class JwtExtractor {
       targetType = ClassUtils.resolvePrimitiveIfNecessary(targetType);
     }
     if (Number.class.isAssignableFrom(targetType) && value instanceof Number number) {
-      return convertNumber(number, targetType);
+      return this.convertNumber(number, targetType);
     }
     if (targetType == Boolean.class && value instanceof Boolean bool) {
       return bool;
     }
     if (Collection.class.isAssignableFrom(targetType) || Map.class.isAssignableFrom(targetType)) {
-      return objectMapper.convertValue(value,
-          objectMapper.getTypeFactory().constructType(targetType));
+      return this.objectMapper.convertValue(value,
+          this.objectMapper.getTypeFactory().constructType(targetType));
     }
-    return objectMapper.convertValue(value, targetType);
+    return this.objectMapper.convertValue(value, targetType);
   }
 
   private Object resolveBody(
-      Class<?> modelClass, JwtModelMetadata metadata, Object candidate) {
-    if (!useJpa || jpaEntityProvider == null) {
+      Class<?> modelClass, JwtModelMetadata metadata, Object candidate
+  ) {
+    if (!this.useJpa || this.jpaEntityProvider == null) {
       return candidate;
     }
     Field idField = metadata.getJpaIdField();
@@ -112,7 +115,7 @@ public class JwtExtractor {
       return candidate;
     }
     Object entity = jpaEntityProvider.findEntity(modelClass, idValue).orElse(null);
-    if (entity != null && modelClass.isInstance(entity)) {
+    if (modelClass.isInstance(entity)) {
       return entity;
     }
     return candidate;

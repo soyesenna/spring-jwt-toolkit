@@ -3,11 +3,14 @@ package com.soyesenna.spring_jwt_toolkit.process.internal;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Optional;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationContext;
 import org.springframework.lang.Nullable;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.ReflectionUtils;
 
+@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 public final class JpaEntityProvider {
 
   private static final List<String> ENTITY_MANAGER_CLASS_NAMES =
@@ -15,11 +18,6 @@ public final class JpaEntityProvider {
 
   private final Object entityManager;
   private final Method findMethod;
-
-  private JpaEntityProvider(Object entityManager, Method findMethod) {
-    this.entityManager = entityManager;
-    this.findMethod = findMethod;
-  }
 
   @Nullable
   public static JpaEntityProvider fromApplicationContext(ApplicationContext context) {

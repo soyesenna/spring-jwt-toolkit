@@ -28,7 +28,8 @@ public class JwtAuthenticationToken extends AbstractAuthenticationToken {
       String token,
       Claims claims,
       Object principal,
-      Collection<? extends GrantedAuthority> authorities) {
+      Collection<? extends GrantedAuthority> authorities
+  ) {
     super(authorities);
     this.tokenType = tokenType;
     this.token = token;

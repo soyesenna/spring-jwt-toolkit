@@ -32,7 +32,8 @@ public class JwtGenerator {
     Map<TokenType, JwtToken> tokens = new EnumMap<>(TokenType.class);
     Stream.of(TokenType.values())
         .forEach(tokenType -> this.generateToken(model, tokenType).ifPresent(
-            token -> tokens.put(tokenType, token)));
+            token -> tokens.put(tokenType, token))
+        );
     return tokens;
   }
 

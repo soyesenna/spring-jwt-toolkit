@@ -31,6 +31,7 @@ public class JwtModelMetadata {
   private final Map<TokenType, Field> subjectFields = new EnumMap<>(TokenType.class);
   private final Map<TokenType, List<JwtClaimFieldMetadata>> claimFields = new EnumMap<>(
       TokenType.class);
+  @Getter
   private final Field jpaIdField;
 
   public JwtModelMetadata(Class<?> modelClass) {
@@ -157,9 +158,5 @@ public class JwtModelMetadata {
               .formatted(modelClass.getName(), ex.getMessage())
       );
     }
-  }
-
-  public Field getJpaIdField() {
-    return this.jpaIdField;
   }
 }
