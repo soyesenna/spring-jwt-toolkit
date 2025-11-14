@@ -42,7 +42,7 @@ public class JwtProperties {
   }
 
   /**
-   * Enables or disables the optional JPA integration. When enabled, {@code JwtExtractor} will
+   * Enables or disables the optional JPA integration. When enabled, {@code JwtToolKit} will
    * attempt to resolve token bodies by looking up entities via their {@code @Id} field.
    *
    * @param useJpa {@code true} to enable entity lookups, {@code false} to keep pure reflection mode

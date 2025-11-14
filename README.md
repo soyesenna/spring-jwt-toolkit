@@ -11,8 +11,8 @@ JWT 생성과 검증을 간결하게 만들어 주는 Spring Boot 전용 라이�
 
 - **어노테이션 기반 모델링** – `@JwtModel`, `@JwtSubject`, `@JwtClaim`만으로 JWT와 도메인 객체 간 매핑 정의.
 - **유연한 토큰 라이프사이클** – 액세스/리프레시 토큰마다 키와 유효 기간을 독립적으로 설정.
-- **선택적 JPA 연동** – `jwt.use-jpa=true`면 `@Id` 필드를 이용해 `EntityManager`에서 엔티티를 자동 조회.
-- **Spring Boot 자동 구성** – 의존성만 추가하면 `JwtGenerator`, `JwtExtractor`, `JwtAuthenticator`를 바로 주입 가능.
+- **선택적 JPA 연동** – `jwt.use-jpa=true`면 `@Id` 필드를 이용해 `JwtToolKit`이 엔티티를 자동 조회.
+- **Spring Boot 자동 구성** – 의존성만 추가하면 원스톱 `JwtToolKit` 빈을 바로 주입 가능.
 - **ObjectMapper 자동 관리** – 모듈 자동 탐색으로 Java Time 등을 별도 설정 없이 처리.
 - **테스트 친화적 구조** – 간단한 API, stubs 제공, 정적 의존성 없음.
 
@@ -59,25 +59,24 @@ jwt:
 @RestController
 @RequiredArgsConstructor
 class AuthController {
-  private final JwtGenerator jwtGenerator;
-  private final JwtExtractor jwtExtractor;
+  private final JwtToolKit jwtToolKit;
 
   @PostMapping("/tokens")
   Map<TokenType, JwtToken> issue(@RequestBody AccountToken token) {
-    return jwtGenerator.generateTokens(token);
+    return this.jwtToolKit.generateTokens(token);
   }
 
   @GetMapping("/me")
   AccountToken me(@RequestHeader("Authorization") String bearer) {
     String token = bearer.substring("Bearer ".length());
-    return jwtExtractor.extract(token, TokenType.ACCESS, AccountToken.class).body();
+    return this.jwtToolKit.extract(token, TokenType.ACCESS, AccountToken.class).body();
   }
 }
 ```
 
 ### 4. Spring Security 통합
 
-`JwtAuthenticator`는 `JwtExtractor`를 감싸 `JwtAuthenticationToken`을 반환하므로,  
+`jwtToolKit.authenticate(...)`를 호출하면 `JwtAuthenticationToken`을 얻을 수 있어,  
 맞춤형 `AuthenticationProvider`나 필터 체인에 쉽게 연결할 수 있습니다.
 
 ---
@@ -118,7 +117,7 @@ class AuthController {
 src/main/java
 ├─ annotations/    # JWT 모델 어노테이션
 ├─ configuration/  # Auto Configuration / Properties
-├─ process/        # Generator, Extractor, Metadata
+├─ process/        # Toolkit 핵심 로직과 Metadata
 └─ exception/      # 예외 계층
 ```
 

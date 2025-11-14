@@ -4,7 +4,7 @@ import com.soyesenna.spring_jwt_toolkit.enums.TokenType;
 import io.jsonwebtoken.Claims;
 
 /**
- * Container returned by {@link JwtExtractor} summarizing the outcome of JWT parsing. In addition to
+ * Container returned by {@link JwtToolKit} summarizing the outcome of JWT parsing. In addition to
  * the hydrated model, callers receive the raw token value and the parsed {@link Claims} to inspect
  * issuer-specific metadata as needed.
  *

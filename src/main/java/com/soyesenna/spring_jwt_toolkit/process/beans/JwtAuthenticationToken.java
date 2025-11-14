@@ -9,7 +9,7 @@ import org.springframework.security.core.GrantedAuthority;
 
 /**
  * {@link org.springframework.security.core.Authentication} implementation that encapsulates the
- * output of {@link JwtExtractor}. It stores the raw token, parsed claims, and hydrated principal for
+ * output of {@link JwtToolKit}. It stores the raw token, parsed claims, and hydrated principal for
  * downstream security components.
  */
 public class JwtAuthenticationToken extends AbstractAuthenticationToken {

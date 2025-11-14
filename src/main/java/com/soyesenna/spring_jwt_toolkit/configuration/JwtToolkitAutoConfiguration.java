@@ -1,9 +1,7 @@
 package com.soyesenna.spring_jwt_toolkit.configuration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.soyesenna.spring_jwt_toolkit.process.beans.JwtAuthenticator;
-import com.soyesenna.spring_jwt_toolkit.process.beans.JwtExtractor;
-import com.soyesenna.spring_jwt_toolkit.process.beans.JwtGenerator;
+import com.soyesenna.spring_jwt_toolkit.process.beans.JwtToolKit;
 import com.soyesenna.spring_jwt_toolkit.process.internal.JwtModelMetadataRegistry;
 import com.soyesenna.spring_jwt_toolkit.process.internal.JpaEntityProvider;
 import com.soyesenna.spring_jwt_toolkit.process.internal.JwtTokenSettingsProvider;
@@ -64,36 +62,19 @@ public class JwtToolkitAutoConfiguration {
   }
 
   /**
-   * Exposes the {@link JwtGenerator} bean that applications can inject to mint tokens.
-   *
-   * @param metadataRegistry cached metadata
-   * @param tokenSettingsProvider provider for signing keys and validity
-   * @param objectMapper mapper used for claim conversion
-   * @return a fully initialized generator
-   */
-  @Bean
-  @ConditionalOnMissingBean
-  public JwtGenerator jwtGenerator(
-      JwtModelMetadataRegistry metadataRegistry,
-      JwtTokenSettingsProvider tokenSettingsProvider,
-      ObjectMapper objectMapper
-  ) {
-    return new JwtGenerator(metadataRegistry, tokenSettingsProvider, objectMapper);
-  }
-
-  /**
-   * Exposes the {@link JwtExtractor}, optionally enabling JPA-backed lookups when configured.
+   * Exposes the consolidated {@link JwtToolKit} bean that applications can inject to mint, parse,
+   * and authenticate JWTs.
    *
    * @param metadataRegistry cached metadata
    * @param tokenSettingsProvider provider for signing keys
-   * @param objectMapper mapper used for deserializing custom claim payloads
+   * @param objectMapper mapper used for claim conversion
    * @param properties toolkit configuration, including the {@code use-jpa} flag
    * @param applicationContext allows detection of a hosted {@code EntityManager}
-   * @return the extractor bean the toolkit relies on
+   * @return the toolkit bean the library provides
    */
   @Bean
   @ConditionalOnMissingBean
-  public JwtExtractor jwtExtractor(
+  public JwtToolKit jwtToolKit(
       JwtModelMetadataRegistry metadataRegistry,
       JwtTokenSettingsProvider tokenSettingsProvider,
       ObjectMapper objectMapper,
@@ -102,24 +83,11 @@ public class JwtToolkitAutoConfiguration {
   ) {
     JpaEntityProvider entityProvider =
         JpaEntityProvider.fromApplicationContext(applicationContext);
-    return new JwtExtractor(
+    return new JwtToolKit(
         metadataRegistry,
         tokenSettingsProvider,
         objectMapper,
         properties.isUseJpa(),
         entityProvider);
-  }
-
-  /**
-   * Publishes a reusable {@link JwtAuthenticator} so integrations with Spring Security can convert
-   * opaque JWT strings into {@link org.springframework.security.core.Authentication} instances.
-   *
-   * @param jwtExtractor extractor dependency injected by Spring
-   * @return an authenticator ready for use in authentication flows
-   */
-  @Bean
-  @ConditionalOnMissingBean
-  public JwtAuthenticator jwtAuthenticator(JwtExtractor jwtExtractor) {
-    return new JwtAuthenticator(jwtExtractor);
   }
 }

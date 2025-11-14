@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.soyesenna.spring_jwt_toolkit.configuration.JwtProperties;
 import com.soyesenna.spring_jwt_toolkit.enums.TokenType;
 import com.soyesenna.spring_jwt_toolkit.process.internal.JpaEntityProvider;
+import com.soyesenna.spring_jwt_toolkit.process.internal.JwtModelMetadata;
 import com.soyesenna.spring_jwt_toolkit.process.internal.JwtModelMetadataRegistry;
 import com.soyesenna.spring_jwt_toolkit.process.internal.JwtTokenSettingsProvider;
 import com.soyesenna.spring_jwt_toolkit.samples.SampleJpaUser;
@@ -16,13 +17,13 @@ import java.util.Base64;
 import org.junit.jupiter.api.Test;
 
 /**
- * Unit tests proving that {@link JwtExtractor} correctly resolves entities via the optional JPA
+ * Unit tests proving that {@link JwtToolKit} correctly resolves entities via the optional JPA
  * integration and can detect identifier fields declared on mapped superclasses.
  */
-class JwtExtractorJpaTests {
+class JwtToolKitJpaTests {
 
   /**
-   * Ensures that when {@code use-jpa=true} the extractor replaces the reflectively populated body
+   * Ensures that when {@code use-jpa=true} the toolkit replaces the reflectively populated body
    * with the entity loaded from the {@link jakarta.persistence.EntityManager}.
    */
   @Test
@@ -31,13 +32,10 @@ class JwtExtractorJpaTests {
     JwtProperties properties = jwtProperties(true);
     JwtTokenSettingsProvider tokenSettingsProvider = new JwtTokenSettingsProvider(properties);
     ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
-    JwtGenerator generator =
-        new JwtGenerator(metadataRegistry, tokenSettingsProvider, objectMapper);
 
     SampleJpaUser tokenUser = new SampleJpaUser();
     tokenUser.setId(42L);
     tokenUser.setEmail("token@sample.com");
-    String token = generator.generateTokenValue(tokenUser, TokenType.ACCESS);
 
     SampleJpaUser persistedUser = new SampleJpaUser();
     persistedUser.setId(42L);
@@ -48,16 +46,18 @@ class JwtExtractorJpaTests {
     JpaEntityProvider provider = JpaEntityProvider.fromEntityManager(entityManager);
     assertThat(provider).isNotNull();
 
-    JwtExtractor extractor =
-        new JwtExtractor(
+    JwtToolKit jwtToolKit =
+        new JwtToolKit(
             metadataRegistry,
             tokenSettingsProvider,
             objectMapper,
             true,
             provider);
 
+    String token = jwtToolKit.generateTokenValue(tokenUser, TokenType.ACCESS);
+
     JwtExtractionResult<SampleJpaUser> result =
-        extractor.extract(token, TokenType.ACCESS, SampleJpaUser.class);
+        jwtToolKit.extract(token, TokenType.ACCESS, SampleJpaUser.class);
 
     assertThat(result.body()).isSameAs(persistedUser);
     assertThat(result.claims().getSubject()).isEqualTo("42");

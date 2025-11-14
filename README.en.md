@@ -9,8 +9,8 @@ Whether you are building a stateless API gateway or a monolithic web app, the to
 
 - **Annotation-driven models** – annotate your domain objects with `@JwtModel`, `@JwtSubject`, and `@JwtClaim` to describe how fields map to JWT subjects and claims.
 - **Pluggable token lifecycle** – configure signing keys, validity windows, and security policies for access and refresh tokens independently.
-- **Optional JPA entity lookup** – enable `jwt.use-jpa=true` to let `JwtExtractor` automatically load entities by their `@Id` fields (supports both `jakarta` and `javax` namespaces).
-- **Spring Boot auto-configuration** – drop the dependency and start injecting `JwtGenerator`, `JwtExtractor`, and `JwtAuthenticator` immediately.
+- **Optional JPA entity lookup** – enable `jwt.use-jpa=true` to let `JwtToolKit` automatically load entities by their `@Id` fields (supports both `jakarta` and `javax` namespaces).
+- **Spring Boot auto-configuration** – drop the dependency and start injecting the one-stop `JwtToolKit` bean immediately.
 - **ObjectMapper management** – ships with a Jackson instance that auto-discovers modules, so Java Time and other modern types just work.
 - **Test-friendly design** – simple APIs, no static singletons, and in-memory stubs included for unit testing.
 
@@ -59,25 +59,24 @@ jwt:
 @RestController
 @RequiredArgsConstructor
 class AuthController {
-  private final JwtGenerator jwtGenerator;
-  private final JwtExtractor jwtExtractor;
+  private final JwtToolKit jwtToolKit;
 
   @PostMapping("/tokens")
   public Map<TokenType, JwtToken> issue(@RequestBody AccountToken token) {
-    return jwtGenerator.generateTokens(token);
+    return this.jwtToolKit.generateTokens(token);
   }
 
   @GetMapping("/me")
   public AccountToken me(@RequestHeader("Authorization") String bearer) {
     String token = bearer.substring("Bearer ".length());
-    return jwtExtractor.extract(token, TokenType.ACCESS, AccountToken.class).body();
+    return this.jwtToolKit.extract(token, TokenType.ACCESS, AccountToken.class).body();
   }
 }
 ```
 
 ### 4. Spring Security integration
 
-`JwtAuthenticator` wraps `JwtExtractor` and returns `JwtAuthenticationToken`, allowing you to drop it into custom `AuthenticationProvider`s or filter chains.
+Call `jwtToolKit.authenticate(...)` to turn compact tokens into `JwtAuthenticationToken` instances that can plug into custom `AuthenticationProvider`s or filter chains.
 
 ---
 
@@ -117,7 +116,7 @@ When `jwt.use-jpa=true`, the toolkit:
 src/main/java
 ├─ annotations/    # JwtModel, JwtSubject, JwtClaim
 ├─ configuration/  # auto-configuration & properties
-├─ process/        # generators, extractors, metadata
+├─ process/        # toolkit core, metadata, token settings
 └─ exception/      # toolkit-specific exception hierarchy
 ```
 
