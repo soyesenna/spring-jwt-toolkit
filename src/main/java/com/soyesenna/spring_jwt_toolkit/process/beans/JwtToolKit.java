@@ -20,7 +20,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.stream.Stream;
 import org.springframework.lang.Nullable;
 import org.springframework.security.core.GrantedAuthority;
@@ -69,6 +68,7 @@ public class JwtToolKit {
     this.jpaEntityProvider = jpaEntityProvider;
   }
 
+  /// ========== GENERATE LOGIC ========== ///
   /**
    * Generates a token for every {@link TokenType}, skipping entries that lack a configured subject
    * field.
@@ -80,10 +80,32 @@ public class JwtToolKit {
     Objects.requireNonNull(model, "model must not be null");
     Map<TokenType, JwtToken> tokens = new EnumMap<>(TokenType.class);
     Stream.of(TokenType.values())
-        .forEach(tokenType -> this.generateToken(model, tokenType).ifPresent(
-            token -> tokens.put(tokenType, token)
-        ));
+        .forEach(tokenType -> tokens.put(tokenType, this.generateToken(model, tokenType)));
     return Map.copyOf(tokens);
+  }
+
+  /**
+   * Convenience method that generates an access token only. Throws if the model does not expose a
+   * {@code @JwtSubject} field for {@link TokenType#ACCESS}.
+   *
+   * @param model annotated model
+   * @return generated access token
+   */
+  public JwtToken generateAccessToken(Object model) {
+    Objects.requireNonNull(model, "model must not be null");
+    return this.generateToken(model, TokenType.ACCESS);
+  }
+
+  /**
+   * Convenience method that generates a refresh token only. Throws if the model lacks a refresh
+   * {@code @JwtSubject}.
+   *
+   * @param model annotated model
+   * @return generated refresh token
+   */
+  public JwtToken generateRefreshToken(Object model) {
+    Objects.requireNonNull(model, "model must not be null");
+    return this.generateToken(model, TokenType.REFRESH);
   }
 
   /**
@@ -95,16 +117,77 @@ public class JwtToolKit {
    * @return signed JWT value
    */
   public String generateTokenValue(Object model, TokenType tokenType) {
-    return this.generateToken(model, tokenType)
-        .map(JwtToken::value)
-        .orElseThrow(
-            () -> new JwtConfigurationException(
-                "No @JwtSubject field configured for token type %s in %s"
-                    .formatted(tokenType, model.getClass().getName())
-            )
-        );
+    return this.generateToken(model, tokenType).value();
   }
 
+  /**
+   * Generates a token for the requested type if the model contains a compatible subject field.
+   */
+  private JwtToken generateToken(Object model, TokenType tokenType) {
+    JwtModelMetadata metadata = this.metadataRegistry.getMetadata(model.getClass());
+    Field subjectField = metadata.getSubjectField(tokenType);
+    if (subjectField == null) {
+      throw new JwtConfigurationException(
+          "No @JwtSubject field configured for token type %s in %s"
+              .formatted(tokenType, model.getClass().getName())
+      );
+    }
+
+    Object subjectValue = ReflectionUtils.getField(subjectField, model);
+    if (subjectValue == null) {
+      throw new JwtProcessingException(
+          "Subject field %s in %s must not be null when generating %s token"
+              .formatted(subjectField.getName(), model.getClass().getName(), tokenType)
+      );
+    }
+
+    String subject = String.valueOf(subjectValue);
+    Map<String, Object> claims = new HashMap<>();
+    for (JwtClaimFieldMetadata claimMetadata : metadata.getClaimFields(tokenType)) {
+      Object value = ReflectionUtils.getField(claimMetadata.field(), model);
+      if (value != null) {
+        claims.put(claimMetadata.claimName(), this.convertClaimValue(value));
+      }
+    }
+
+    Instant issuedAt = Instant.now();
+    Instant expiresAt = issuedAt.plus(this.tokenSettingsProvider.getValidity(tokenType));
+    var builder =
+        Jwts.builder()
+            .subject(subject)
+            .issuedAt(java.util.Date.from(issuedAt))
+            .expiration(java.util.Date.from(expiresAt));
+
+    claims.forEach(builder::claim);
+
+    String tokenValue =
+        builder.signWith(this.tokenSettingsProvider.getSigningKey(tokenType)).compact();
+    return new JwtToken(tokenType, tokenValue, issuedAt, expiresAt);
+  }
+
+  /**
+   * Converts arbitrary claim values into JSON-compatible payloads while preserving simple values.
+   *
+   * @param value value read from the model field
+   * @return normalized representation supported by the JWT library
+   */
+  private Object convertClaimValue(Object value) {
+    if (value == null) {
+      return null;
+    }
+
+    if (value instanceof String
+        || value instanceof Number
+        || value instanceof Boolean
+        || value instanceof Map<?, ?>
+        || value instanceof Iterable<?>) {
+      return value;
+    }
+
+    return this.objectMapper.convertValue(value, Object.class);
+  }
+
+  /// ========== AUTHENTICATE ========== ///
   /**
    * Authenticates a JWT using the supplied model class without attaching authorities.
    *
@@ -148,6 +231,7 @@ public class JwtToolKit {
     );
   }
 
+  /// ========== EXTRACT ========== ///
   /**
    * Verifies the token signature, maps the payload into the requested model, and optionally loads
    * the entity via JPA.
@@ -185,70 +269,6 @@ public class JwtToolKit {
     Object resolvedBody = this.resolveBody(modelClass, metadata, body);
     return new JwtExtractionResult<>(
         token, tokenType, claims, modelClass.cast(resolvedBody));
-  }
-
-  /**
-   * Generates a token for the requested type if the model contains a compatible subject field.
-   */
-  private Optional<JwtToken> generateToken(Object model, TokenType tokenType) {
-    JwtModelMetadata metadata = this.metadataRegistry.getMetadata(model.getClass());
-    Field subjectField = metadata.getSubjectField(tokenType);
-    if (subjectField == null) {
-      return Optional.empty();
-    }
-
-    Object subjectValue = ReflectionUtils.getField(subjectField, model);
-    if (subjectValue == null) {
-      throw new JwtProcessingException(
-          "Subject field %s in %s must not be null when generating %s token"
-              .formatted(subjectField.getName(), model.getClass().getName(), tokenType)
-      );
-    }
-
-    String subject = String.valueOf(subjectValue);
-    Map<String, Object> claims = new HashMap<>();
-    for (JwtClaimFieldMetadata claimMetadata : metadata.getClaimFields(tokenType)) {
-      Object value = ReflectionUtils.getField(claimMetadata.field(), model);
-      if (value != null) {
-        claims.put(claimMetadata.claimName(), this.convertClaimValue(value));
-      }
-    }
-
-    Instant issuedAt = Instant.now();
-    Instant expiresAt = issuedAt.plus(this.tokenSettingsProvider.getValidity(tokenType));
-    var builder =
-        Jwts.builder()
-            .subject(subject)
-            .issuedAt(java.util.Date.from(issuedAt))
-            .expiration(java.util.Date.from(expiresAt));
-
-    claims.forEach(builder::claim);
-
-    String tokenValue =
-        builder.signWith(this.tokenSettingsProvider.getSigningKey(tokenType)).compact();
-    return Optional.of(new JwtToken(tokenType, tokenValue, issuedAt, expiresAt));
-  }
-
-  /**
-   * Converts arbitrary claim values into JSON-compatible payloads while preserving simple values.
-   *
-   * @param value value read from the model field
-   * @return normalized representation supported by the JWT library
-   */
-  private Object convertClaimValue(Object value) {
-    if (value == null) {
-      return null;
-    }
-
-    if (value instanceof String
-        || value instanceof Number
-        || value instanceof Boolean
-        || value instanceof Map<?, ?>
-        || value instanceof Iterable<?>) {
-      return value;
-    }
-
-    return this.objectMapper.convertValue(value, Object.class);
   }
 
   /**
