@@ -1,6 +1,7 @@
 package com.soyesenna.spring_jwt_toolkit.process.internal;
 
 import java.lang.reflect.Method;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.context.ApplicationContext;
 import org.springframework.lang.Nullable;
@@ -9,7 +10,8 @@ import org.springframework.util.ReflectionUtils;
 
 public final class JpaEntityProvider {
 
-  private static final String ENTITY_MANAGER_CLASS_NAME = "jakarta.persistence.EntityManager";
+  private static final List<String> ENTITY_MANAGER_CLASS_NAMES =
+      List.of("jakarta.persistence.EntityManager", "javax.persistence.EntityManager");
 
   private final Object entityManager;
   private final Method findMethod;
@@ -21,11 +23,10 @@ public final class JpaEntityProvider {
 
   @Nullable
   public static JpaEntityProvider fromApplicationContext(ApplicationContext context) {
-    if (!ClassUtils.isPresent(ENTITY_MANAGER_CLASS_NAME, context.getClassLoader())) {
+    Class<?> entityManagerClass = resolveEntityManagerClass(context.getClassLoader());
+    if (entityManagerClass == null) {
       return null;
     }
-    Class<?> entityManagerClass =
-        ClassUtils.resolveClassName(ENTITY_MANAGER_CLASS_NAME, context.getClassLoader());
     Object entityManager = context.getBeanProvider(entityManagerClass).getIfAvailable();
     if (entityManager == null) {
       return null;
@@ -62,6 +63,16 @@ public final class JpaEntityProvider {
       method = ReflectionUtils.findMethod(candidate, "find", Class.class, Object.class);
       if (method != null) {
         return method;
+      }
+    }
+    return null;
+  }
+
+  @Nullable
+  private static Class<?> resolveEntityManagerClass(ClassLoader classLoader) {
+    for (String className : ENTITY_MANAGER_CLASS_NAMES) {
+      if (ClassUtils.isPresent(className, classLoader)) {
+        return ClassUtils.resolveClassName(className, classLoader);
       }
     }
     return null;

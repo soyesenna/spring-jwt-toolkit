@@ -1,6 +1,6 @@
 package com.soyesenna.spring_jwt_toolkit.samples;
 
-import jakarta.persistence.EntityManager;
+import javax.persistence.EntityManager;
 import java.util.HashMap;
 import java.util.Map;
 

@@ -20,14 +20,12 @@ public class JwtModelMetadata {
 
   @Getter
   private final Class<?> modelClass;
-  private static final String JPA_ID_ANNOTATION_NAME = "jakarta.persistence.Id";
-  @SuppressWarnings("unchecked")
-  private static final Class<? extends Annotation> JPA_ID_ANNOTATION_CLASS =
-      ClassUtils.isPresent(JPA_ID_ANNOTATION_NAME, JwtModelMetadata.class.getClassLoader())
-          ? (Class<? extends Annotation>)
-              ClassUtils.resolveClassName(
-                  JPA_ID_ANNOTATION_NAME, JwtModelMetadata.class.getClassLoader())
-          : null;
+  private static final String[] JPA_ID_ANNOTATION_NAMES = {
+      "jakarta.persistence.Id",
+      "javax.persistence.Id"
+  };
+  private static final List<Class<? extends Annotation>> JPA_ID_ANNOTATION_CLASSES =
+      resolveJpaIdAnnotations();
 
   private final Constructor<?> constructor;
   private final Map<TokenType, Field> subjectFields = new EnumMap<>(TokenType.class);
@@ -98,7 +96,7 @@ public class JwtModelMetadata {
   }
 
   private Field resolveJpaIdField(Class<?> type) {
-    if (JPA_ID_ANNOTATION_CLASS == null) {
+    if (JPA_ID_ANNOTATION_CLASSES.isEmpty()) {
       return null;
     }
     class FieldHolder {
@@ -109,12 +107,37 @@ public class JwtModelMetadata {
         type,
         field -> {
           if (holder.field == null
-              && field.getAnnotation(JPA_ID_ANNOTATION_CLASS) != null) {
+              && hasJpaIdAnnotation(field)) {
             ReflectionUtils.makeAccessible(field);
             holder.field = field;
           }
         });
     return holder.field;
+  }
+
+  private static List<Class<? extends Annotation>> resolveJpaIdAnnotations() {
+    List<Class<? extends Annotation>> annotations = new ArrayList<>();
+    ClassLoader classLoader = JwtModelMetadata.class.getClassLoader();
+    for (String className : JPA_ID_ANNOTATION_NAMES) {
+      if (ClassUtils.isPresent(className, classLoader)) {
+        Class<?> annotationType = ClassUtils.resolveClassName(className, classLoader);
+        if (Annotation.class.isAssignableFrom(annotationType)) {
+          @SuppressWarnings("unchecked")
+          Class<? extends Annotation> casted = (Class<? extends Annotation>) annotationType;
+          annotations.add(casted);
+        }
+      }
+    }
+    return List.copyOf(annotations);
+  }
+
+  private static boolean hasJpaIdAnnotation(Field field) {
+    for (Class<? extends Annotation> annotation : JPA_ID_ANNOTATION_CLASSES) {
+      if (field.getAnnotation(annotation) != null) {
+        return true;
+      }
+    }
+    return false;
   }
 
   public Field getSubjectField(TokenType tokenType) {

@@ -2,7 +2,7 @@ package com.soyesenna.spring_jwt_toolkit.samples;
 
 import com.soyesenna.spring_jwt_toolkit.annotations.JwtSubject;
 import com.soyesenna.spring_jwt_toolkit.enums.TokenType;
-import jakarta.persistence.Id;
+import javax.persistence.Id;
 
 public abstract class AbstractJpaEntity {
 
