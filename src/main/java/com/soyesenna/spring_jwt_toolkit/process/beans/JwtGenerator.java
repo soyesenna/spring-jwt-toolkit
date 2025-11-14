@@ -1,9 +1,13 @@
-package com.soyesenna.spring_jwt_toolkit.process;
+package com.soyesenna.spring_jwt_toolkit.process.beans;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.soyesenna.spring_jwt_toolkit.enums.TokenType;
 import com.soyesenna.spring_jwt_toolkit.exception.JwtConfigurationException;
 import com.soyesenna.spring_jwt_toolkit.exception.JwtProcessingException;
+import com.soyesenna.spring_jwt_toolkit.process.internal.JwtClaimFieldMetadata;
+import com.soyesenna.spring_jwt_toolkit.process.internal.JwtModelMetadata;
+import com.soyesenna.spring_jwt_toolkit.process.internal.JwtModelMetadataRegistry;
+import com.soyesenna.spring_jwt_toolkit.process.internal.JwtTokenSettingsProvider;
 import io.jsonwebtoken.Jwts;
 import java.lang.reflect.Field;
 import java.time.Instant;
@@ -27,14 +31,14 @@ public class JwtGenerator {
     Objects.requireNonNull(model, "model must not be null");
     Map<TokenType, JwtToken> tokens = new EnumMap<>(TokenType.class);
     Stream.of(TokenType.values())
-        .forEach(tokenType -> generateToken(model, tokenType).ifPresent(
+        .forEach(tokenType -> this.generateToken(model, tokenType).ifPresent(
             token -> tokens.put(tokenType, token)));
     return tokens;
   }
 
   public String generateTokenValue(Object model, TokenType tokenType) {
-    return generateToken(model, tokenType)
-        .map(JwtToken::getValue)
+    return this.generateToken(model, tokenType)
+        .map(JwtToken::value)
         .orElseThrow(
             () -> new JwtConfigurationException(
                 "No @JwtSubject field configured for token type %s in %s"
@@ -54,7 +58,8 @@ public class JwtGenerator {
     if (subjectValue == null) {
       throw new JwtProcessingException(
           "Subject field %s in %s must not be null when generating %s token"
-              .formatted(subjectField.getName(), model.getClass().getName(), tokenType));
+              .formatted(subjectField.getName(), model.getClass().getName(), tokenType)
+      );
     }
 
     String subject = String.valueOf(subjectValue);

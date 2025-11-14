@@ -1,4 +1,4 @@
-package com.soyesenna.spring_jwt_toolkit.process;
+package com.soyesenna.spring_jwt_toolkit.process.internal;
 
 import com.soyesenna.spring_jwt_toolkit.configuration.JwtProperties;
 import com.soyesenna.spring_jwt_toolkit.enums.TokenType;
@@ -31,10 +31,11 @@ public class JwtTokenSettingsProvider {
     Duration validity = tokenSettings.getValidity();
     if (validity == null || validity.isZero() || validity.isNegative()) {
       throw new JwtConfigurationException(
-          "jwt.%s.validity must be a positive duration".formatted(tokenType.name().toLowerCase()));
+          "jwt.%s.validity must be a positive duration".formatted(tokenType.name().toLowerCase())
+      );
     }
 
-    byte[] keyBytes = decodeKey(tokenSettings.getKey());
+    byte[] keyBytes = this.decodeKey(tokenSettings.getKey());
     SecretKey secretKey = Keys.hmacShaKeyFor(keyBytes);
     settings.put(tokenType, new JwtTokenSettings(secretKey, validity));
   }
@@ -42,24 +43,25 @@ public class JwtTokenSettingsProvider {
   private byte[] decodeKey(String value) {
     try {
       return Decoders.BASE64.decode(value);
-    } catch (IllegalArgumentException ex) {
+    } catch (RuntimeException ex) {
       return value.getBytes(StandardCharsets.UTF_8);
     }
   }
 
   public SecretKey getSigningKey(TokenType tokenType) {
-    return getSettings(tokenType).secretKey();
+    return this.getSettings(tokenType).secretKey();
   }
 
   public Duration getValidity(TokenType tokenType) {
-    return getSettings(tokenType).validity();
+    return this.getSettings(tokenType).validity();
   }
 
   private JwtTokenSettings getSettings(TokenType tokenType) {
     JwtTokenSettings tokenSettings = settings.get(tokenType);
     if (tokenSettings == null) {
       throw new JwtConfigurationException(
-          "No jwt configuration found for token type %s".formatted(tokenType));
+          "No jwt configuration found for token type %s".formatted(tokenType)
+      );
     }
     return tokenSettings;
   }

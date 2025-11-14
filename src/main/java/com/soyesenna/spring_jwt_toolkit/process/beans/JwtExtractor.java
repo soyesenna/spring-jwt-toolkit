@@ -1,8 +1,12 @@
-package com.soyesenna.spring_jwt_toolkit.process;
+package com.soyesenna.spring_jwt_toolkit.process.beans;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.soyesenna.spring_jwt_toolkit.enums.TokenType;
 import com.soyesenna.spring_jwt_toolkit.exception.JwtProcessingException;
+import com.soyesenna.spring_jwt_toolkit.process.internal.JwtClaimFieldMetadata;
+import com.soyesenna.spring_jwt_toolkit.process.internal.JwtModelMetadata;
+import com.soyesenna.spring_jwt_toolkit.process.internal.JwtModelMetadataRegistry;
+import com.soyesenna.spring_jwt_toolkit.process.internal.JwtTokenSettingsProvider;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.JwtException;
@@ -28,7 +32,7 @@ public class JwtExtractor {
     Assert.notNull(modelClass, "modelClass must not be null");
 
     Claims claims = parseClaims(token, tokenType);
-    JwtModelMetadata metadata = metadataRegistry.getMetadata(modelClass);
+    JwtModelMetadata metadata = this.metadataRegistry.getMetadata(modelClass);
     Object body = metadata.createInstance();
 
     Field subjectField = metadata.getSubjectField(tokenType);

@@ -1,0 +1,7 @@
+jwt:
+  access:
+    key: test-access-key-0123456789-abcdefghijklmnopqrstuvwxyz
+    validity: PT15M
+  refresh:
+    key: test-refresh-key-9876543210-zyxwvutsrqponmlkjihgfedcba
+    validity: PT2H

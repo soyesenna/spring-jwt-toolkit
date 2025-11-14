@@ -1,4 +1,4 @@
-package com.soyesenna.spring_jwt_toolkit.process;
+package com.soyesenna.spring_jwt_toolkit.process.beans;
 
 import com.soyesenna.spring_jwt_toolkit.enums.TokenType;
 import io.jsonwebtoken.Claims;

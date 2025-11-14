@@ -1,4 +1,4 @@
-package com.soyesenna.spring_jwt_toolkit.process;
+package com.soyesenna.spring_jwt_toolkit.process.internal;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -10,6 +10,6 @@ public class JwtModelMetadataRegistry {
 
   public JwtModelMetadata getMetadata(Class<?> modelClass) {
     Assert.notNull(modelClass, "modelClass must not be null");
-    return cache.computeIfAbsent(modelClass, JwtModelMetadata::new);
+    return this.cache.computeIfAbsent(modelClass, JwtModelMetadata::new);
   }
 }

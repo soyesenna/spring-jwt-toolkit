@@ -1,11 +1,11 @@
 package com.soyesenna.spring_jwt_toolkit.configuration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.soyesenna.spring_jwt_toolkit.process.JwtAuthenticator;
-import com.soyesenna.spring_jwt_toolkit.process.JwtExtractor;
-import com.soyesenna.spring_jwt_toolkit.process.JwtGenerator;
-import com.soyesenna.spring_jwt_toolkit.process.JwtModelMetadataRegistry;
-import com.soyesenna.spring_jwt_toolkit.process.JwtTokenSettingsProvider;
+import com.soyesenna.spring_jwt_toolkit.process.beans.JwtAuthenticator;
+import com.soyesenna.spring_jwt_toolkit.process.beans.JwtExtractor;
+import com.soyesenna.spring_jwt_toolkit.process.beans.JwtGenerator;
+import com.soyesenna.spring_jwt_toolkit.process.internal.JwtModelMetadataRegistry;
+import com.soyesenna.spring_jwt_toolkit.process.internal.JwtTokenSettingsProvider;
 import io.jsonwebtoken.Jwts;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -28,6 +28,12 @@ public class JwtToolkitAutoConfiguration {
   @ConditionalOnMissingBean
   public JwtTokenSettingsProvider jwtTokenSettingsProvider(JwtProperties properties) {
     return new JwtTokenSettingsProvider(properties);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean
+  public ObjectMapper jwtToolkitObjectMapper() {
+    return new ObjectMapper().findAndRegisterModules();
   }
 
   @Bean
