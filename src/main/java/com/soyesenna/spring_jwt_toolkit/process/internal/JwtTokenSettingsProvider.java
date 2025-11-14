@@ -13,15 +13,30 @@ import javax.crypto.SecretKey;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
+/**
+ * Validates and exposes signing settings derived from {@link JwtProperties}. The provider lazily
+ * supplies signing keys and validity durations for each {@link TokenType}.
+ */
 public class JwtTokenSettingsProvider {
 
   private final Map<TokenType, JwtTokenSettings> settings = new EnumMap<>(TokenType.class);
 
+  /**
+   * Creates a provider initialized from the supplied properties.
+   *
+   * @param properties strongly typed configuration backing JWT behaviour
+   */
   public JwtTokenSettingsProvider(JwtProperties properties) {
     Assert.notNull(properties, "properties must not be null");
     properties.asMap().forEach(this::registerSettings);
   }
 
+  /**
+   * Validates and caches the token settings for an individual {@link TokenType}.
+   *
+   * @param tokenType token classification
+   * @param tokenSettings raw configuration slice that should be validated and stored
+   */
   private void registerSettings(TokenType tokenType, JwtProperties.TokenSettings tokenSettings) {
     if (!StringUtils.hasText(tokenSettings.getKey())) {
       throw new JwtConfigurationException(
@@ -40,6 +55,12 @@ public class JwtTokenSettingsProvider {
     settings.put(tokenType, new JwtTokenSettings(secretKey, validity));
   }
 
+  /**
+   * Decodes keys that might be Base64-encoded while falling back to raw UTF-8 bytes for plain text.
+   *
+   * @param value configured key
+   * @return decoded key bytes
+   */
   private byte[] decodeKey(String value) {
     try {
       return Decoders.BASE64.decode(value);
@@ -48,14 +69,26 @@ public class JwtTokenSettingsProvider {
     }
   }
 
+  /**
+   * @return signing key for the requested token type
+   */
   public SecretKey getSigningKey(TokenType tokenType) {
     return this.getSettings(tokenType).secretKey();
   }
 
+  /**
+   * @return configured validity for the requested token type
+   */
   public Duration getValidity(TokenType tokenType) {
     return this.getSettings(tokenType).validity();
   }
 
+  /**
+   * Locates cached settings or raises a descriptive configuration error.
+   *
+   * @param tokenType token classification
+   * @return immutable pair describing signing key and validity
+   */
   private JwtTokenSettings getSettings(TokenType tokenType) {
     JwtTokenSettings tokenSettings = settings.get(tokenType);
     if (tokenSettings == null) {
@@ -66,5 +99,8 @@ public class JwtTokenSettingsProvider {
     return tokenSettings;
   }
 
+  /**
+   * Value object storing the signing key and validity for a token type.
+   */
   private record JwtTokenSettings(SecretKey secretKey, Duration validity) {}
 }

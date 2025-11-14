@@ -12,13 +12,16 @@ import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import lombok.Getter;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.ReflectionUtils;
 
+/**
+ * Encapsulates all reflective metadata derived from a {@code @JwtModel}-annotated class, including
+ * subject mappings, claim mappings, and optional JPA identifier fields. The metadata object is
+ * intended to be cached and shared via {@link JwtModelMetadataRegistry}.
+ */
 public class JwtModelMetadata {
 
-  @Getter
   private final Class<?> modelClass;
   private static final String[] JPA_ID_ANNOTATION_NAMES = {
       "jakarta.persistence.Id",
@@ -29,11 +32,15 @@ public class JwtModelMetadata {
 
   private final Constructor<?> constructor;
   private final Map<TokenType, Field> subjectFields = new EnumMap<>(TokenType.class);
-  private final Map<TokenType, List<JwtClaimFieldMetadata>> claimFields = new EnumMap<>(
-      TokenType.class);
-  @Getter
+  private final Map<TokenType, List<JwtClaimFieldMetadata>> claimFields =
+      new EnumMap<>(TokenType.class);
   private final Field jpaIdField;
 
+  /**
+   * Inspects the supplied class to discover subject and claim mappings.
+   *
+   * @param modelClass annotated model class
+   */
   public JwtModelMetadata(Class<?> modelClass) {
     this.modelClass = modelClass;
     if (!modelClass.isAnnotationPresent(JwtModel.class)) {
@@ -62,6 +69,16 @@ public class JwtModelMetadata {
     this.jpaIdField = resolveJpaIdField(modelClass);
   }
 
+  /**
+   * @return model class that owns the metadata
+   */
+  public Class<?> getModelClass() {
+    return modelClass;
+  }
+
+  /**
+   * Registers a single field as either subject or claim metadata when applicable.
+   */
   private void registerField(Field field) {
     ReflectionUtils.makeAccessible(field);
     if (field.isAnnotationPresent(JwtSubject.class)) {
@@ -72,6 +89,9 @@ public class JwtModelMetadata {
     }
   }
 
+  /**
+   * Associates a subject field with each token type declared on the {@link JwtSubject} annotation.
+   */
   private void registerSubjectField(Field field) {
     JwtSubject annotation = field.getAnnotation(JwtSubject.class);
     TokenType[] tokenTypes = annotation.tokenTypes();
@@ -87,6 +107,9 @@ public class JwtModelMetadata {
     }
   }
 
+  /**
+   * Captures claim metadata for every token type listed on the {@link JwtClaim} annotation.
+   */
   private void registerClaimField(Field field) {
     JwtClaim annotation = field.getAnnotation(JwtClaim.class);
     for (TokenType tokenType : annotation.tokenTypes()) {
@@ -96,6 +119,9 @@ public class JwtModelMetadata {
     }
   }
 
+  /**
+   * Searches the model hierarchy for a field annotated with any supported JPA {@code @Id}.
+   */
   private Field resolveJpaIdField(Class<?> type) {
     if (JPA_ID_ANNOTATION_CLASSES.isEmpty()) {
       return null;
@@ -116,6 +142,10 @@ public class JwtModelMetadata {
     return holder.field;
   }
 
+  /**
+   * Resolves any available {@code @Id} annotations so the toolkit can remain compatible with both
+   * Jakarta EE and older Java EE namespaces.
+   */
   private static List<Class<? extends Annotation>> resolveJpaIdAnnotations() {
     List<Class<? extends Annotation>> annotations = new ArrayList<>();
     ClassLoader classLoader = JwtModelMetadata.class.getClassLoader();
@@ -132,6 +162,9 @@ public class JwtModelMetadata {
     return List.copyOf(annotations);
   }
 
+  /**
+   * Determines whether the supplied field carries a supported {@code @Id} annotation.
+   */
   private static boolean hasJpaIdAnnotation(Field field) {
     for (Class<? extends Annotation> annotation : JPA_ID_ANNOTATION_CLASSES) {
       if (field.getAnnotation(annotation) != null) {
@@ -141,14 +174,25 @@ public class JwtModelMetadata {
     return false;
   }
 
+  /**
+   * @return subject field configured for the supplied token type, or {@code null} if none exists
+   */
   public Field getSubjectField(TokenType tokenType) {
     return this.subjectFields.get(tokenType);
   }
 
+  /**
+   * @return list of claim descriptors for the supplied token type
+   */
   public List<JwtClaimFieldMetadata> getClaimFields(TokenType tokenType) {
     return this.claimFields.getOrDefault(tokenType, List.of());
   }
 
+  /**
+   * Creates a new instance of the model using its default constructor.
+   *
+   * @return zero-argument instance of the model class
+   */
   public Object createInstance() {
     try {
       return this.constructor.newInstance();
@@ -158,5 +202,12 @@ public class JwtModelMetadata {
               .formatted(modelClass.getName(), ex.getMessage())
       );
     }
+  }
+
+  /**
+   * @return resolved JPA identifier field, or {@code null} when JPA annotations are absent
+   */
+  public Field getJpaIdField() {
+    return this.jpaIdField;
   }
 }

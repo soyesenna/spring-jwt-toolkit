@@ -17,26 +17,62 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
-import lombok.RequiredArgsConstructor;
 import org.springframework.util.ReflectionUtils;
 
-@RequiredArgsConstructor
+/**
+ * Generates signed JWTs from {@link com.soyesenna.spring_jwt_toolkit.annotations.JwtModel}-annotated
+ * objects. The generator inspects metadata to determine which field should be used as the JWT
+ * {@code sub} claim and which additional claims should be embedded.
+ */
 public class JwtGenerator {
 
   private final JwtModelMetadataRegistry metadataRegistry;
   private final JwtTokenSettingsProvider tokenSettingsProvider;
   private final ObjectMapper objectMapper;
 
+  /**
+   * Creates a new generator with the dependencies required to inspect metadata and sign tokens.
+   *
+   * @param metadataRegistry cache for model introspection results
+   * @param tokenSettingsProvider provides signing keys and validity durations
+   * @param objectMapper mapper used to convert arbitrary claim values into JSON-compatible shapes
+   */
+  public JwtGenerator(
+      JwtModelMetadataRegistry metadataRegistry,
+      JwtTokenSettingsProvider tokenSettingsProvider,
+      ObjectMapper objectMapper
+  ) {
+    this.metadataRegistry = Objects.requireNonNull(metadataRegistry, "metadataRegistry must not be null");
+    this.tokenSettingsProvider =
+        Objects.requireNonNull(tokenSettingsProvider, "tokenSettingsProvider must not be null");
+    this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper must not be null");
+  }
+
+  /**
+   * Generates a token for every {@link TokenType} declared in the toolkit, skipping entries that do
+   * not have a configured {@code @JwtSubject} field.
+   *
+   * @param model model instance annotated with {@code @JwtModel}
+   * @return immutable map of generated tokens keyed by {@link TokenType}
+   */
   public Map<TokenType, JwtToken> generateTokens(Object model) {
     Objects.requireNonNull(model, "model must not be null");
     Map<TokenType, JwtToken> tokens = new EnumMap<>(TokenType.class);
     Stream.of(TokenType.values())
         .forEach(tokenType -> this.generateToken(model, tokenType).ifPresent(
-            token -> tokens.put(tokenType, token))
-        );
-    return tokens;
+            token -> tokens.put(tokenType, token)
+        ));
+    return Map.copyOf(tokens);
   }
 
+  /**
+    * Generates a single token value for the supplied type, throwing an exception if the model does
+    * not expose a subject field for that type.
+    *
+    * @param model annotated model instance
+    * @param tokenType desired token classification
+    * @return signed JWT value
+    */
   public String generateTokenValue(Object model, TokenType tokenType) {
     return this.generateToken(model, tokenType)
         .map(JwtToken::value)
@@ -48,6 +84,13 @@ public class JwtGenerator {
         );
   }
 
+  /**
+   * Generates a token for the requested type if the model contains a compatible subject field.
+   *
+   * @param model annotated model
+   * @param tokenType desired token classification
+   * @return optional containing the generated token if a subject is present
+   */
   private Optional<JwtToken> generateToken(Object model, TokenType tokenType) {
     JwtModelMetadata metadata = this.metadataRegistry.getMetadata(model.getClass());
     Field subjectField = metadata.getSubjectField(tokenType);
@@ -84,9 +127,15 @@ public class JwtGenerator {
 
     String tokenValue =
         builder.signWith(this.tokenSettingsProvider.getSigningKey(tokenType)).compact();
-    return java.util.Optional.of(new JwtToken(tokenType, tokenValue, issuedAt, expiresAt));
+    return Optional.of(new JwtToken(tokenType, tokenValue, issuedAt, expiresAt));
   }
 
+  /**
+   * Converts arbitrary claim values into JSON-compatible payloads while preserving simple values.
+   *
+   * @param value value read from the model field
+   * @return normalized representation supported by the JWT library
+   */
   private Object convertClaimValue(Object value) {
     if (value == null) {
       return null;

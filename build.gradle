@@ -1,8 +1,10 @@
+import com.vanniktech.maven.publish.SonatypeHost
+
 plugins {
 	id 'java-library'
 	id 'org.springframework.boot' version '3.5.7'
 	id 'io.spring.dependency-management' version '1.1.7'
-	id "com.vanniktech.maven.publish" version "0.28.0"
+	id "com.vanniktech.maven.publish" version "0.32.0"
 	id 'signing'
 }
 
@@ -24,6 +26,50 @@ configurations {
 
 repositories {
 	mavenCentral()
+}
+
+tasks.withType(Javadoc) {
+	options {
+		encoding 'UTF-8'
+	}
+}
+
+signing {
+	sign publishing.publications
+}
+
+mavenPublishing {
+	signAllPublications()
+	publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+
+	coordinates("com.soyesenna", "spring-jwt-toolkit", "0.0.1")
+
+	pom {
+		name = 'spring-jwt-toolkit'
+		description = 'JWT Toolkit for Spring Project'
+		url = 'https://github.com/soyesenna/spring-jwt-toolkit.git'
+
+		licenses {
+			license {
+				name = 'Apache License'
+				url = 'https://github.com/soyesenna/spring-jwt-toolkit/blob/main/LICENSE'
+			}
+		}
+
+		developers {
+			developer {
+				id = 'soyesenna'
+				name = 'Jooyoung Kim'
+				email = 'kjy915875@gmail.com'
+			}
+		}
+
+		scm {
+			connection = 'scm:git:github.com/soyesenna/spring-jwt-toolkit.git'
+			developerConnection = 'scm:git:ssh://github.com:soyesenna/spring-jwt-toolkit.git'
+			url = 'https://github.com/soyesenna/spring-jwt-toolkit/tree/main'
+		}
+	}
 }
 
 dependencies {

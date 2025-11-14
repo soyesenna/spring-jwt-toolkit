@@ -15,8 +15,16 @@ import java.time.Duration;
 import java.util.Base64;
 import org.junit.jupiter.api.Test;
 
+/**
+ * Unit tests proving that {@link JwtExtractor} correctly resolves entities via the optional JPA
+ * integration and can detect identifier fields declared on mapped superclasses.
+ */
 class JwtExtractorJpaTests {
 
+  /**
+   * Ensures that when {@code use-jpa=true} the extractor replaces the reflectively populated body
+   * with the entity loaded from the {@link jakarta.persistence.EntityManager}.
+   */
   @Test
   void extractUsesJpaEntityWhenEnabled() {
     JwtModelMetadataRegistry metadataRegistry = new JwtModelMetadataRegistry();
@@ -55,6 +63,10 @@ class JwtExtractorJpaTests {
     assertThat(result.claims().getSubject()).isEqualTo("42");
   }
 
+  /**
+   * Verifies that {@link JwtModelMetadata} can find {@code @Id} annotations declared on
+   * superclasses rather than the concrete entity type.
+   */
   @Test
   void metadataFindsJpaIdFieldInSuperclass() {
     JwtModelMetadataRegistry registry = new JwtModelMetadataRegistry();
@@ -64,6 +76,9 @@ class JwtExtractorJpaTests {
         .isEqualTo("id");
   }
 
+  /**
+   * Creates a {@link JwtProperties} instance suitable for use in unit tests.
+   */
   private JwtProperties jwtProperties(boolean useJpa) {
     JwtProperties properties = new JwtProperties();
     properties.setUseJpa(useJpa);
