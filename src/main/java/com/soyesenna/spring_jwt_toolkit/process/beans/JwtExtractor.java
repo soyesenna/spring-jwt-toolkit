@@ -6,14 +6,16 @@ import com.soyesenna.spring_jwt_toolkit.exception.JwtProcessingException;
 import com.soyesenna.spring_jwt_toolkit.process.internal.JwtClaimFieldMetadata;
 import com.soyesenna.spring_jwt_toolkit.process.internal.JwtModelMetadata;
 import com.soyesenna.spring_jwt_toolkit.process.internal.JwtModelMetadataRegistry;
+import com.soyesenna.spring_jwt_toolkit.process.internal.JpaEntityProvider;
 import com.soyesenna.spring_jwt_toolkit.process.internal.JwtTokenSettingsProvider;
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
 import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.ReflectionUtils;
@@ -24,6 +26,9 @@ public class JwtExtractor {
   private final JwtModelMetadataRegistry metadataRegistry;
   private final JwtTokenSettingsProvider tokenSettingsProvider;
   private final ObjectMapper objectMapper;
+  private final boolean useJpa;
+  @Nullable
+  private final JpaEntityProvider jpaEntityProvider;
 
   public <T> JwtExtractionResult<T> extract(String token, TokenType tokenType,
       Class<T> modelClass) {
@@ -49,8 +54,9 @@ public class JwtExtractor {
       }
     }
 
+    Object resolvedBody = resolveBody(modelClass, metadata, body);
     return new JwtExtractionResult<>(
-        token, tokenType, claims, modelClass.cast(body));
+        token, tokenType, claims, modelClass.cast(resolvedBody));
   }
 
   private Claims parseClaims(String token, TokenType tokenType) {
@@ -90,6 +96,26 @@ public class JwtExtractor {
           objectMapper.getTypeFactory().constructType(targetType));
     }
     return objectMapper.convertValue(value, targetType);
+  }
+
+  private Object resolveBody(
+      Class<?> modelClass, JwtModelMetadata metadata, Object candidate) {
+    if (!useJpa || jpaEntityProvider == null) {
+      return candidate;
+    }
+    Field idField = metadata.getJpaIdField();
+    if (idField == null) {
+      return candidate;
+    }
+    Object idValue = ReflectionUtils.getField(idField, candidate);
+    if (idValue == null) {
+      return candidate;
+    }
+    Object entity = jpaEntityProvider.findEntity(modelClass, idValue).orElse(null);
+    if (entity != null && modelClass.isInstance(entity)) {
+      return entity;
+    }
+    return candidate;
   }
 
   private Object convertNumber(Number number, Class<?> targetType) {

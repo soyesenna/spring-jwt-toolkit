@@ -15,6 +15,8 @@ public class JwtProperties {
 
   private final TokenSettings access = new TokenSettings();
   private final TokenSettings refresh = new TokenSettings();
+  @Setter
+  private boolean useJpa = false;
 
   public Map<TokenType, TokenSettings> asMap() {
     Map<TokenType, TokenSettings> map = new EnumMap<>(TokenType.class);
@@ -33,7 +35,6 @@ public class JwtProperties {
 
   @Getter @Setter
   public static class TokenSettings {
-
     private String key;
     private Duration validity = Duration.ZERO;
   }

@@ -5,6 +5,7 @@ import com.soyesenna.spring_jwt_toolkit.annotations.JwtModel;
 import com.soyesenna.spring_jwt_toolkit.annotations.JwtSubject;
 import com.soyesenna.spring_jwt_toolkit.enums.TokenType;
 import com.soyesenna.spring_jwt_toolkit.exception.JwtConfigurationException;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -12,16 +13,27 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import lombok.Getter;
+import org.springframework.util.ClassUtils;
 import org.springframework.util.ReflectionUtils;
 
 public class JwtModelMetadata {
 
   @Getter
   private final Class<?> modelClass;
+  private static final String JPA_ID_ANNOTATION_NAME = "jakarta.persistence.Id";
+  @SuppressWarnings("unchecked")
+  private static final Class<? extends Annotation> JPA_ID_ANNOTATION_CLASS =
+      ClassUtils.isPresent(JPA_ID_ANNOTATION_NAME, JwtModelMetadata.class.getClassLoader())
+          ? (Class<? extends Annotation>)
+              ClassUtils.resolveClassName(
+                  JPA_ID_ANNOTATION_NAME, JwtModelMetadata.class.getClassLoader())
+          : null;
+
   private final Constructor<?> constructor;
   private final Map<TokenType, Field> subjectFields = new EnumMap<>(TokenType.class);
   private final Map<TokenType, List<JwtClaimFieldMetadata>> claimFields = new EnumMap<>(
       TokenType.class);
+  private final Field jpaIdField;
 
   public JwtModelMetadata(Class<?> modelClass) {
     this.modelClass = modelClass;
@@ -47,6 +59,8 @@ public class JwtModelMetadata {
             field.isAnnotationPresent(JwtSubject.class)
                 || field.isAnnotationPresent(JwtClaim.class)
     );
+
+    this.jpaIdField = resolveJpaIdField(modelClass);
   }
 
   private void registerField(Field field) {
@@ -83,6 +97,26 @@ public class JwtModelMetadata {
     }
   }
 
+  private Field resolveJpaIdField(Class<?> type) {
+    if (JPA_ID_ANNOTATION_CLASS == null) {
+      return null;
+    }
+    class FieldHolder {
+      Field field;
+    }
+    FieldHolder holder = new FieldHolder();
+    ReflectionUtils.doWithFields(
+        type,
+        field -> {
+          if (holder.field == null
+              && field.getAnnotation(JPA_ID_ANNOTATION_CLASS) != null) {
+            ReflectionUtils.makeAccessible(field);
+            holder.field = field;
+          }
+        });
+    return holder.field;
+  }
+
   public Field getSubjectField(TokenType tokenType) {
     return this.subjectFields.get(tokenType);
   }
@@ -100,5 +134,9 @@ public class JwtModelMetadata {
               .formatted(modelClass.getName(), ex.getMessage())
       );
     }
+  }
+
+  public Field getJpaIdField() {
+    return this.jpaIdField;
   }
 }

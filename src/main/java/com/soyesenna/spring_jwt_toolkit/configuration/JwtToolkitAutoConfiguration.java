@@ -5,6 +5,7 @@ import com.soyesenna.spring_jwt_toolkit.process.beans.JwtAuthenticator;
 import com.soyesenna.spring_jwt_toolkit.process.beans.JwtExtractor;
 import com.soyesenna.spring_jwt_toolkit.process.beans.JwtGenerator;
 import com.soyesenna.spring_jwt_toolkit.process.internal.JwtModelMetadataRegistry;
+import com.soyesenna.spring_jwt_toolkit.process.internal.JpaEntityProvider;
 import com.soyesenna.spring_jwt_toolkit.process.internal.JwtTokenSettingsProvider;
 import io.jsonwebtoken.Jwts;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -12,6 +13,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.ApplicationContext;
 
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnClass(Jwts.class)
@@ -51,9 +53,18 @@ public class JwtToolkitAutoConfiguration {
   public JwtExtractor jwtExtractor(
       JwtModelMetadataRegistry metadataRegistry,
       JwtTokenSettingsProvider tokenSettingsProvider,
-      ObjectMapper objectMapper
+      ObjectMapper objectMapper,
+      JwtProperties properties,
+      ApplicationContext applicationContext
   ) {
-    return new JwtExtractor(metadataRegistry, tokenSettingsProvider, objectMapper);
+    JpaEntityProvider entityProvider =
+        JpaEntityProvider.fromApplicationContext(applicationContext);
+    return new JwtExtractor(
+        metadataRegistry,
+        tokenSettingsProvider,
+        objectMapper,
+        properties.isUseJpa(),
+        entityProvider);
   }
 
   @Bean
