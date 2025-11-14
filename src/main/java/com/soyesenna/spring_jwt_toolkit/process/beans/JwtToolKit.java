@@ -3,6 +3,8 @@ package com.soyesenna.spring_jwt_toolkit.process.beans;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.soyesenna.spring_jwt_toolkit.enums.TokenType;
 import com.soyesenna.spring_jwt_toolkit.exception.JwtConfigurationException;
+import com.soyesenna.spring_jwt_toolkit.exception.JwtExpiredException;
+import com.soyesenna.spring_jwt_toolkit.exception.JwtInvalidException;
 import com.soyesenna.spring_jwt_toolkit.exception.JwtProcessingException;
 import com.soyesenna.spring_jwt_toolkit.process.internal.JpaEntityProvider;
 import com.soyesenna.spring_jwt_toolkit.process.internal.JwtClaimFieldMetadata;
@@ -10,6 +12,7 @@ import com.soyesenna.spring_jwt_toolkit.process.internal.JwtModelMetadata;
 import com.soyesenna.spring_jwt_toolkit.process.internal.JwtModelMetadataRegistry;
 import com.soyesenna.spring_jwt_toolkit.process.internal.JwtTokenSettingsProvider;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import java.lang.reflect.Field;
@@ -220,7 +223,8 @@ public class JwtToolKit {
 
     Object resolvedBody = this.resolveBody(modelClass, metadata, body);
     return new JwtExtractionResult<>(
-        token, tokenType, claims, modelClass.cast(resolvedBody));
+        token, tokenType, claims, modelClass.cast(resolvedBody)
+    );
   }
 
   /**
@@ -237,9 +241,14 @@ public class JwtToolKit {
           .build()
           .parseSignedClaims(token)
           .getPayload();
+    } catch (ExpiredJwtException ex) {
+      throw new JwtExpiredException(
+          "Expired %s token: %s".formatted(tokenType, ex.getMessage()), ex
+      );
     } catch (JwtException ex) {
-      throw new JwtProcessingException(
-          "Failed to parse %s token: %s".formatted(tokenType, ex.getMessage()), ex);
+      throw new JwtInvalidException(
+          "Invalid %s token: %s".formatted(tokenType, ex.getMessage()), ex
+      );
     }
   }
 
@@ -271,7 +280,8 @@ public class JwtToolKit {
     }
     if (Collection.class.isAssignableFrom(targetType) || Map.class.isAssignableFrom(targetType)) {
       return this.objectMapper.convertValue(value,
-          this.objectMapper.getTypeFactory().constructType(targetType));
+          this.objectMapper.getTypeFactory().constructType(targetType)
+      );
     }
     return this.objectMapper.convertValue(value, targetType);
   }
@@ -299,7 +309,7 @@ public class JwtToolKit {
       return candidate;
     }
     Object entity = this.jpaEntityProvider.findEntity(modelClass, idValue).orElse(null);
-    if (entity != null && modelClass.isInstance(entity)) {
+    if (modelClass.isInstance(entity)) {
       return entity;
     }
     return candidate;
