@@ -76,8 +76,8 @@ class AuthController {
 
 ### 4. Spring Security 통합
 
-`jwtToolKit.authenticate(...)`를 호출하면 `JwtAuthenticationToken`을 얻을 수 있어,  
-맞춤형 `AuthenticationProvider`나 필터 체인에 쉽게 연결할 수 있습니다.
+필터나 `AuthenticationProvider` 내부에서 `jwtToolKit.extract(...)`를 호출해 JWT를 파싱한 뒤,  
+원하는 형태의 `Authentication` 구현체로 감싸서 보안 컨텍스트에 저장하면 됩니다.
 
 ---
 

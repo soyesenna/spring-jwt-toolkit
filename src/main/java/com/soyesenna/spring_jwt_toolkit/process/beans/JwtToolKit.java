@@ -17,22 +17,18 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.EnumMap;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
 import org.springframework.lang.Nullable;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
-import org.springframework.util.CollectionUtils;
 import org.springframework.util.ReflectionUtils;
 
 /**
- * Central toolkit that covers token generation, extraction, and authentication. It merges the
- * functionality previously provided by {@code JwtGenerator}, {@code JwtExtractor}, and
- * {@code JwtAuthenticator} into a single entry point while retaining the detailed documentation of
- * each responsibility.
+ * Central toolkit that covers token generation and extraction. It merges the functionality
+ * previously provided by {@code JwtGenerator} and {@code JwtExtractor} into a single entry point
+ * while retaining the detailed documentation of each responsibility.
  */
 public class JwtToolKit {
 
@@ -185,50 +181,6 @@ public class JwtToolKit {
     }
 
     return this.objectMapper.convertValue(value, Object.class);
-  }
-
-  /// ========== AUTHENTICATE ========== ///
-  /**
-   * Authenticates a JWT using the supplied model class without attaching authorities.
-   *
-   * @param token compact JWT string
-   * @param tokenType token classification
-   * @param modelClass target model type used for claim hydration
-   * @param <T> model type
-   * @return {@link JwtAuthenticationToken} populated with the extracted body
-   */
-  public <T> JwtAuthenticationToken authenticate(
-      String token, TokenType tokenType, Class<T> modelClass
-  ) {
-    return this.authenticate(token, tokenType, modelClass, List.of());
-  }
-
-  /**
-   * Authenticates a JWT and attaches the provided authorities to the resulting token.
-   *
-   * @param token compact JWT string
-   * @param tokenType token classification
-   * @param modelClass target model type used for claim hydration
-   * @param authorities authorities that should be associated with the authentication
-   * @param <T> model type
-   * @return {@link JwtAuthenticationToken} ready to be stored in the {@code SecurityContext}
-   */
-  public <T> JwtAuthenticationToken authenticate(
-      String token,
-      TokenType tokenType,
-      Class<T> modelClass,
-      Collection<? extends GrantedAuthority> authorities
-  ) {
-    JwtExtractionResult<T> extraction = this.extract(token, tokenType, modelClass);
-    Collection<? extends GrantedAuthority> safeAuthorities =
-        CollectionUtils.isEmpty(authorities) ? List.of() : List.copyOf(authorities);
-    return new JwtAuthenticationToken(
-        extraction.tokenType(),
-        extraction.token(),
-        extraction.claims(),
-        extraction.body(),
-        safeAuthorities
-    );
   }
 
   /// ========== EXTRACT ========== ///

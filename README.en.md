@@ -76,7 +76,7 @@ class AuthController {
 
 ### 4. Spring Security integration
 
-Call `jwtToolKit.authenticate(...)` to turn compact tokens into `JwtAuthenticationToken` instances that can plug into custom `AuthenticationProvider`s or filter chains.
+Call `jwtToolKit.extract(...)` inside your authentication filter or provider to turn compact JWTs into strongly typed principals before wrapping them in your own `Authentication` implementation.
 
 ---
 
