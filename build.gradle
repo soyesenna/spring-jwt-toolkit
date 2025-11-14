@@ -29,6 +29,7 @@ repositories {
 dependencies {
 	// spring
 	api 'org.springframework.boot:spring-boot-starter'
+	api 'org.springframework.security:spring-security-core'
 
 	// lombok
 	compileOnly 'org.projectlombok:lombok'
