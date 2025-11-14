@@ -1,6 +1,7 @@
 package com.soyesenna.spring_jwt_toolkit.configuration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.soyesenna.spring_jwt_toolkit.context.HttpRequestContextFilter;
 import com.soyesenna.spring_jwt_toolkit.process.beans.JwtToolKit;
 import com.soyesenna.spring_jwt_toolkit.process.internal.JwtModelMetadataRegistry;
 import com.soyesenna.spring_jwt_toolkit.process.internal.JpaEntityProvider;
@@ -89,5 +90,11 @@ public class JwtToolkitAutoConfiguration {
         objectMapper,
         properties.isUseJpa(),
         entityProvider);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean
+  public HttpRequestContextFilter httpRequestContextFilter(ObjectMapper objectMapper) {
+    return new HttpRequestContextFilter(objectMapper);
   }
 }

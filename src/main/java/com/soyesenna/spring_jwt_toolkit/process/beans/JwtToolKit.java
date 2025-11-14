@@ -1,6 +1,8 @@
 package com.soyesenna.spring_jwt_toolkit.process.beans;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.soyesenna.spring_jwt_toolkit.context.HttpRequestContext;
+import com.soyesenna.spring_jwt_toolkit.context.HttpRequestContextHolder;
 import com.soyesenna.spring_jwt_toolkit.enums.TokenType;
 import com.soyesenna.spring_jwt_toolkit.exception.JwtConfigurationException;
 import com.soyesenna.spring_jwt_toolkit.exception.JwtExpiredException;
@@ -22,8 +24,10 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Stream;
 import org.springframework.lang.Nullable;
+import org.springframework.util.StringUtils;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.ReflectionUtils;
@@ -65,6 +69,56 @@ public class JwtToolKit {
     this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper must not be null");
     this.useJpa = useJpa;
     this.jpaEntityProvider = jpaEntityProvider;
+  }
+
+  /// ========== REQUEST CONTEXT ACCESS ========== ///
+
+  public Optional<String> extractFromHeader(String headerKey) {
+    return currentContext().flatMap(ctx -> findHeader(ctx.headers(), headerKey));
+  }
+
+  public Optional<Object> extractFromBody(String key) {
+    if (!StringUtils.hasText(key)) {
+      return Optional.empty();
+    }
+    return currentContext().map(HttpRequestContext::body).map(body -> body.get(key));
+  }
+
+  public Optional<String> extractFromCookie(String key) {
+    if (!StringUtils.hasText(key)) {
+      return Optional.empty();
+    }
+    return currentContext().map(HttpRequestContext::cookies).map(cookies -> cookies.get(key));
+  }
+
+  public Optional<String> extractFromAuthorizationBearer() {
+    return this.extractFromHeader("Authorization")
+        .map(value -> value.startsWith("Bearer ") ? value.substring(7).trim() : value)
+        .filter(StringUtils::hasText);
+  }
+
+  public Optional<String> extractTokenFromHeader(TokenType tokenType, String headerKey) {
+    return this.extractFromHeader(headerKey);
+  }
+
+  public Optional<String> extractTokenFromCookie(TokenType tokenType, String cookieKey) {
+    return this.extractFromCookie(cookieKey);
+  }
+
+  public Optional<String> extractAccessTokenFromHeader(String headerKey) {
+    return this.extractTokenFromHeader(TokenType.ACCESS, headerKey);
+  }
+
+  public Optional<String> extractRefreshTokenFromHeader(String headerKey) {
+    return this.extractTokenFromHeader(TokenType.REFRESH, headerKey);
+  }
+
+  public Optional<String> extractAccessTokenFromCookie(String cookieKey) {
+    return this.extractTokenFromCookie(TokenType.ACCESS, cookieKey);
+  }
+
+  public Optional<String> extractRefreshTokenFromCookie(String cookieKey) {
+    return this.extractTokenFromCookie(TokenType.REFRESH, cookieKey);
   }
 
   /// ========== GENERATE LOGIC ========== ///
@@ -342,5 +396,20 @@ public class JwtToolKit {
       return number.byteValue();
     }
     return number;
+  }
+
+  private Optional<HttpRequestContext> currentContext() {
+    return HttpRequestContextHolder.getContext();
+  }
+
+  private Optional<String> findHeader(Map<String, String> headers, String key) {
+    if (!StringUtils.hasText(key) || headers.isEmpty()) {
+      return Optional.empty();
+    }
+    return headers.entrySet().stream()
+        .filter(entry -> entry.getKey().equalsIgnoreCase(key))
+        .map(Map.Entry::getValue)
+        .findFirst()
+        .filter(StringUtils::hasText);
   }
 }
