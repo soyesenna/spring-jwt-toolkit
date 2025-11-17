@@ -14,6 +14,7 @@ Whether you are building a stateless API gateway or a monolithic web app, the to
 - **ObjectMapper management** – ships with a Jackson instance that auto-discovers modules, so Java Time and other modern types just work.
 - **Test-friendly design** – simple APIs, no static singletons, and in-memory stubs included for unit testing.
 - **Fine-grained error reporting** – expired tokens raise `JwtExpiredException`, while malformed ones trigger `JwtInvalidException`.
+- **Request context snapshot** – headers, cookies, and JSON bodies are cached per request and surfaced through `JwtToolKit` helpers backed by `HttpRequestContextHolder`.
 
 ---
 
@@ -78,6 +79,24 @@ class AuthController {
 ### 4. Spring Security integration
 
 Call `jwtToolKit.extract(...)` inside your authentication filter or provider to turn compact JWTs into strongly typed principals before wrapping them in your own `Authentication` implementation.
+
+### 5. Request context helpers
+
+The toolkit automatically registers a servlet filter that caches headers, cookies, and JSON bodies in a thread-local context:
+
+```java
+String tenantId = HttpRequestContextHolder.getContext()
+    .map(ctx -> ctx.headers().get("X-Tenant-Id"))
+    .orElse(null);
+
+JwtExtractionResult<AccountToken> session =
+    jwtToolKit.extractAccessTokenFromCookie("SESSION", AccountToken.class)
+        .orElseThrow();
+AccountToken principal =
+    jwtToolKit.extractAccessTokenFromAuthorizationBearer(AccountToken.class)
+        .map(JwtExtractionResult::body)
+        .orElse(null);
+```
 
 ---
 

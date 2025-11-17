@@ -73,52 +73,224 @@ public class JwtToolKit {
 
   /// ========== REQUEST CONTEXT ACCESS ========== ///
 
-  public Optional<String> extractFromHeader(String headerKey) {
+  /**
+   * Locates a header within the cached request context, performing a case-insensitive lookup.
+   *
+   * @param headerKey header name requested by callers
+   * @return optional containing the header value when present
+   */
+  private Optional<String> headerValue(String headerKey) {
     return currentContext().flatMap(ctx -> findHeader(ctx.headers(), headerKey));
   }
 
-  public Optional<Object> extractFromBody(String key) {
+  /**
+   * Reads an attribute from the captured JSON request body.
+   *
+   * @param key map key recorded in the body snapshot
+   * @return optional containing the attribute when available
+   */
+  private Optional<Object> bodyValue(String key) {
     if (!StringUtils.hasText(key)) {
       return Optional.empty();
     }
     return currentContext().map(HttpRequestContext::body).map(body -> body.get(key));
   }
 
-  public Optional<String> extractFromCookie(String key) {
+  /**
+   * Resolves a cookie from the cached request context.
+   *
+   * @param key cookie name
+   * @return optional containing the cookie value when present
+   */
+  private Optional<String> cookieValue(String key) {
     if (!StringUtils.hasText(key)) {
       return Optional.empty();
     }
-    return currentContext().map(HttpRequestContext::cookies).map(cookies -> cookies.get(key));
+    return currentContext()
+        .map(HttpRequestContext::cookies)
+        .map(cookies -> cookies.get(key))
+        .filter(StringUtils::hasText);
   }
 
-  public Optional<String> extractFromAuthorizationBearer() {
-    return this.extractFromHeader("Authorization")
+  /**
+   * Extracts the bearer value from the {@code Authorization} header when the request uses the
+   * {@code Bearer <JWT>} format.
+   *
+   * @return optional containing the raw JWT when the header is present
+   */
+  private Optional<String> authorizationBearerValue() {
+    return this.headerValue("Authorization")
         .map(value -> value.startsWith("Bearer ") ? value.substring(7).trim() : value)
         .filter(StringUtils::hasText);
   }
 
-  public Optional<String> extractTokenFromHeader(TokenType tokenType, String headerKey) {
-    return this.extractFromHeader(headerKey);
+  /**
+   * Extracts and verifies a JWT sourced from the {@code Authorization} header for the requested
+   * token type.
+   *
+   * @param tokenType token classification used to pick signing keys
+   * @param modelClass strongly typed model that should back the extraction result
+   * @param <T> model type parameter
+   * @return optional containing the hydrated extraction result when a bearer token is present
+   */
+  public <T> Optional<JwtExtractionResult<T>> extractFromAuthorizationBearer(
+      TokenType tokenType,
+      Class<T> modelClass
+  ) {
+    return this.extractFromRequestContext(
+        this.authorizationBearerValue(),
+        tokenType,
+        modelClass
+    );
   }
 
-  public Optional<String> extractTokenFromCookie(TokenType tokenType, String cookieKey) {
-    return this.extractFromCookie(cookieKey);
+  /**
+   * Shortcut that extracts an access token from the bearer header when present.
+   *
+   * @param modelClass desired model type
+   * @param <T> model type parameter
+   * @return optional containing the extraction result
+   */
+  public <T> Optional<JwtExtractionResult<T>> extractAccessTokenFromAuthorizationBearer(
+      Class<T> modelClass
+  ) {
+    return this.extractFromAuthorizationBearer(TokenType.ACCESS, modelClass);
   }
 
-  public Optional<String> extractAccessTokenFromHeader(String headerKey) {
-    return this.extractTokenFromHeader(TokenType.ACCESS, headerKey);
+  /**
+   * Shortcut that extracts a refresh token from the bearer header when present.
+   *
+   * @param modelClass desired model type
+   * @param <T> model type parameter
+   * @return optional containing the extraction result
+   */
+  public <T> Optional<JwtExtractionResult<T>> extractRefreshTokenFromAuthorizationBearer(
+      Class<T> modelClass
+  ) {
+    return this.extractFromAuthorizationBearer(TokenType.REFRESH, modelClass);
   }
 
-  public Optional<String> extractRefreshTokenFromHeader(String headerKey) {
-    return this.extractTokenFromHeader(TokenType.REFRESH, headerKey);
+  /**
+   * Parses a token originating from an arbitrary HTTP header.
+   *
+   * @param tokenType classification of the token
+   * @param headerKey header name
+   * @param modelClass model type to materialize
+   * @param <T> model type parameter
+   * @return optional containing the extraction result
+   */
+  public <T> Optional<JwtExtractionResult<T>> extractFromHeader(
+      TokenType tokenType,
+      String headerKey,
+      Class<T> modelClass
+  ) {
+    return this.extractFromRequestContext(
+        this.headerValue(headerKey),
+        tokenType,
+        modelClass
+    );
   }
 
-  public Optional<String> extractAccessTokenFromCookie(String cookieKey) {
-    return this.extractTokenFromCookie(TokenType.ACCESS, cookieKey);
+  /**
+   * Convenience accessor that extracts an access token from the supplied header.
+   */
+  public <T> Optional<JwtExtractionResult<T>> extractAccessTokenFromHeader(
+      String headerKey,
+      Class<T> modelClass
+  ) {
+    return this.extractFromHeader(TokenType.ACCESS, headerKey, modelClass);
   }
 
-  public Optional<String> extractRefreshTokenFromCookie(String cookieKey) {
-    return this.extractTokenFromCookie(TokenType.REFRESH, cookieKey);
+  /**
+   * Convenience accessor that extracts a refresh token from the supplied header.
+   */
+  public <T> Optional<JwtExtractionResult<T>> extractRefreshTokenFromHeader(
+      String headerKey,
+      Class<T> modelClass
+  ) {
+    return this.extractFromHeader(TokenType.REFRESH, headerKey, modelClass);
+  }
+
+  /**
+   * Parses a JWT stored inside a named cookie.
+   *
+   * @param tokenType classification of the token
+   * @param cookieKey cookie name
+   * @param modelClass model to materialize
+   * @param <T> model type parameter
+   * @return optional containing the extraction result
+   */
+  public <T> Optional<JwtExtractionResult<T>> extractFromCookie(
+      TokenType tokenType,
+      String cookieKey,
+      Class<T> modelClass
+  ) {
+    return this.extractFromRequestContext(
+        this.cookieValue(cookieKey),
+        tokenType,
+        modelClass
+    );
+  }
+
+  /**
+   * Convenience accessor that extracts an access token from the specified cookie.
+   */
+  public <T> Optional<JwtExtractionResult<T>> extractAccessTokenFromCookie(
+      String cookieKey,
+      Class<T> modelClass
+  ) {
+    return this.extractFromCookie(TokenType.ACCESS, cookieKey, modelClass);
+  }
+
+  /**
+   * Convenience accessor that extracts a refresh token from the specified cookie.
+   */
+  public <T> Optional<JwtExtractionResult<T>> extractRefreshTokenFromCookie(
+      String cookieKey,
+      Class<T> modelClass
+  ) {
+    return this.extractFromCookie(TokenType.REFRESH, cookieKey, modelClass);
+  }
+
+  /**
+   * Parses a token available inside the cached JSON request body.
+   *
+   * @param tokenType classification of the token
+   * @param key name of the body attribute that holds the token string
+   * @param modelClass model to materialize
+   * @param <T> model type parameter
+   * @return optional containing the extraction result
+   */
+  public <T> Optional<JwtExtractionResult<T>> extractFromBody(
+      TokenType tokenType,
+      String key,
+      Class<T> modelClass
+  ) {
+    return this.extractFromRequestContext(
+        this.bodyTokenValue(key),
+        tokenType,
+        modelClass
+    );
+  }
+
+  /**
+   * Convenience accessor that extracts an access token from the request body snapshot.
+   */
+  public <T> Optional<JwtExtractionResult<T>> extractAccessTokenFromBody(
+      String key,
+      Class<T> modelClass
+  ) {
+    return this.extractFromBody(TokenType.ACCESS, key, modelClass);
+  }
+
+  /**
+   * Convenience accessor that extracts a refresh token from the request body snapshot.
+   */
+  public <T> Optional<JwtExtractionResult<T>> extractRefreshTokenFromBody(
+      String key,
+      Class<T> modelClass
+  ) {
+    return this.extractFromBody(TokenType.REFRESH, key, modelClass);
   }
 
   /// ========== GENERATE LOGIC ========== ///
@@ -400,6 +572,36 @@ public class JwtToolKit {
 
   private Optional<HttpRequestContext> currentContext() {
     return HttpRequestContextHolder.getContext();
+  }
+
+  /**
+   * Runs extraction when a token value is present in the request context, guaranteeing that entities
+   * are resolved through JPA when enabled.
+   */
+  private <T> Optional<JwtExtractionResult<T>> extractFromRequestContext(
+      Optional<String> tokenValue,
+      TokenType tokenType,
+      Class<T> modelClass
+  ) {
+    Objects.requireNonNull(tokenType, "tokenType must not be null");
+    Objects.requireNonNull(modelClass, "modelClass must not be null");
+    return tokenValue.map(value -> this.extract(value, tokenType, modelClass));
+  }
+
+  /**
+   * Attempts to coerce a request-body attribute into a token string.
+   *
+   * @param key name of the JSON attribute that stores the token
+   * @return normalized token wrapped in an optional
+   */
+  private Optional<String> bodyTokenValue(String key) {
+    if (!StringUtils.hasText(key)) {
+      return Optional.empty();
+    }
+    return this.bodyValue(key)
+        .map(value -> value instanceof String str ? str : value.toString())
+        .map(String::trim)
+        .filter(StringUtils::hasText);
   }
 
   private Optional<String> findHeader(Map<String, String> headers, String key) {

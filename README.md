@@ -16,6 +16,7 @@ JWT 생성과 검증을 간결하게 만들어 주는 Spring Boot 전용 라이�
 - **ObjectMapper 자동 관리** – 모듈 자동 탐색으로 Java Time 등을 별도 설정 없이 처리.
 - **테스트 친화적 구조** – 간단한 API, stubs 제공, 정적 의존성 없음.
 - **구체적인 예외 구분** – 만료 토큰(`JwtExpiredException`)과 잘못된 토큰(`JwtInvalidException`)을 별도 예외로 구분.
+- **요청 컨텍스트 스냅샷** – ThreadLocal에 저장된 정보를 `JwtToolKit` 헬퍼 메서드로 손쉽게 조회.
 
 ---
 
@@ -79,6 +80,24 @@ class AuthController {
 
 필터나 `AuthenticationProvider` 내부에서 `jwtToolKit.extract(...)`를 호출해 JWT를 파싱한 뒤,  
 원하는 형태의 `Authentication` 구현체로 감싸서 보안 컨텍스트에 저장하면 됩니다.
+
+### 5. 요청 컨텍스트 도우미
+
+라이브러리는 서블릿 필터를 등록하여 요청 헤더/바디/쿠키를 ThreadLocal DTO에 저장합니다.
+
+```java
+String tenantId = HttpRequestContextHolder.getContext()
+    .map(ctx -> ctx.headers().get("X-Tenant-Id"))
+    .orElse(null);
+
+JwtExtractionResult<AccountToken> session =
+    jwtToolKit.extractAccessTokenFromCookie("SESSION", AccountToken.class)
+        .orElseThrow();
+AccountToken principal =
+    jwtToolKit.extractAccessTokenFromAuthorizationBearer(AccountToken.class)
+        .map(JwtExtractionResult::body)
+        .orElse(null);
+```
 
 ---
 
