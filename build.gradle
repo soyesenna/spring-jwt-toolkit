@@ -9,7 +9,7 @@ plugins {
 }
 
 group = 'com.soyesenna'
-version = '0.0.1'
+version = '0.1.0'
 description = 'JWT Toolkit for Spring Project'
 
 java {
@@ -42,7 +42,7 @@ mavenPublishing {
 	signAllPublications()
 	publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
 
-	coordinates("com.soyesenna", "spring-jwt-toolkit", "0.0.1")
+	coordinates("com.soyesenna", "spring-jwt-toolkit", "0.1.0")
 
 	pom {
 		name = 'spring-jwt-toolkit'
@@ -76,6 +76,9 @@ dependencies {
 	// spring
 	api 'org.springframework.boot:spring-boot-starter'
 	api 'org.springframework.security:spring-security-core'
+	api 'org.springframework:spring-web'
+	compileOnly 'jakarta.servlet:jakarta.servlet-api:6.0.0'
+	testImplementation 'jakarta.servlet:jakarta.servlet-api:6.0.0'
 
 	// lombok
 	compileOnly 'org.projectlombok:lombok'
