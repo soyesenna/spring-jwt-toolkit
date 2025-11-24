@@ -42,7 +42,6 @@ public class JwtToolKit {
   private final JwtModelMetadataRegistry metadataRegistry;
   private final JwtTokenSettingsProvider tokenSettingsProvider;
   private final ObjectMapper objectMapper;
-  private final boolean useJpa;
   @Nullable
   private final JpaEntityProvider jpaEntityProvider;
 
@@ -53,21 +52,18 @@ public class JwtToolKit {
    * @param metadataRegistry cache for model introspection results
    * @param tokenSettingsProvider provides signing keys and validity durations
    * @param objectMapper mapper used to convert arbitrary claim values into JSON-compatible shapes
-   * @param useJpa whether JPA entity lookups should be attempted after extraction
    * @param jpaEntityProvider optional adapter around an {@code EntityManager}
    */
   public JwtToolKit(
       JwtModelMetadataRegistry metadataRegistry,
       JwtTokenSettingsProvider tokenSettingsProvider,
       ObjectMapper objectMapper,
-      boolean useJpa,
       @Nullable JpaEntityProvider jpaEntityProvider
   ) {
     this.metadataRegistry = Objects.requireNonNull(metadataRegistry, "metadataRegistry must not be null");
     this.tokenSettingsProvider =
         Objects.requireNonNull(tokenSettingsProvider, "tokenSettingsProvider must not be null");
     this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper must not be null");
-    this.useJpa = useJpa;
     this.jpaEntityProvider = jpaEntityProvider;
   }
 
@@ -513,8 +509,9 @@ public class JwtToolKit {
   }
 
   /**
-   * Resolves the final model instance. When JPA integration is enabled the method attempts to load
-   * an entity by ID; otherwise the reflectively populated object is returned.
+   * Resolves the final model instance. When the model opts into JPA and a provider is available,
+   * the method attempts to load an entity by ID; otherwise the reflectively populated object is
+   * returned.
    *
    * @param modelClass model type requested by the caller
    * @param metadata metadata describing the model
@@ -523,7 +520,7 @@ public class JwtToolKit {
    */
   private Object resolveBody(
       Class<?> modelClass, JwtModelMetadata metadata, Object candidate) {
-    if (!this.useJpa || this.jpaEntityProvider == null) {
+    if (!metadata.isJpaEnabled() || this.jpaEntityProvider == null) {
       return candidate;
     }
     Field idField = metadata.getJpaIdField();

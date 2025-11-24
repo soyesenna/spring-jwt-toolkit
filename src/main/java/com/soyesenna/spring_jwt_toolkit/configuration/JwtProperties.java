@@ -9,16 +9,14 @@ import org.springframework.util.Assert;
 
 /**
  * Strongly typed representation of the {@code jwt.*} configuration tree. The properties control
- * signing keys, token validity, and optional integration points such as JPA. Binding this class via
- * {@link ConfigurationProperties} ensures that validation occurs early in the application start-up
- * lifecycle.
+ * signing keys and token validity. Binding this class via {@link ConfigurationProperties} ensures
+ * that validation occurs early in the application start-up lifecycle.
  */
 @ConfigurationProperties(prefix = "jwt")
 public class JwtProperties {
 
   private final TokenSettings access = new TokenSettings();
   private final TokenSettings refresh = new TokenSettings();
-  private boolean useJpa = false;
 
   /**
    * @return configuration for access tokens
@@ -32,23 +30,6 @@ public class JwtProperties {
    */
   public TokenSettings getRefresh() {
     return refresh;
-  }
-
-  /**
-   * @return whether the toolkit should attempt to load entities from a JPA {@code EntityManager}
-   */
-  public boolean isUseJpa() {
-    return useJpa;
-  }
-
-  /**
-   * Enables or disables the optional JPA integration. When enabled, {@code JwtToolKit} will
-   * attempt to resolve token bodies by looking up entities via their {@code @Id} field.
-   *
-   * @param useJpa {@code true} to enable entity lookups, {@code false} to keep pure reflection mode
-   */
-  public void setUseJpa(boolean useJpa) {
-    this.useJpa = useJpa;
   }
 
   /**

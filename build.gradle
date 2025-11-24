@@ -9,7 +9,7 @@ plugins {
 }
 
 group = 'com.soyesenna'
-version = '0.1.0'
+version = '0.1.1'
 description = 'JWT Toolkit for Spring Project'
 
 java {
@@ -42,7 +42,7 @@ mavenPublishing {
 	signAllPublications()
 	publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
 
-	coordinates("com.soyesenna", "spring-jwt-toolkit", "0.1.0")
+	coordinates("com.soyesenna", "spring-jwt-toolkit", "0.1.1")
 
 	pom {
 		name = 'spring-jwt-toolkit'

@@ -9,7 +9,7 @@ Whether you are building a stateless API gateway or a monolithic web app, the to
 
 - **Annotation-driven models** – annotate your domain objects with `@JwtModel`, `@JwtSubject`, and `@JwtClaim` to describe how fields map to JWT subjects and claims.
 - **Pluggable token lifecycle** – configure signing keys, validity windows, and security policies for access and refresh tokens independently.
-- **Optional JPA entity lookup** – enable `jwt.use-jpa=true` to let `JwtToolKit` automatically load entities by their `@Id` fields (supports both `jakarta` and `javax` namespaces).
+- **Optional JPA entity lookup** – annotate models with `@JwtModel(useJpa = true)` to automatically load entities by their `@Id` fields (supports both `jakarta` and `javax` namespaces).
 - **Spring Boot auto-configuration** – drop the dependency and start injecting the one-stop `JwtToolKit` bean immediately.
 - **ObjectMapper management** – ships with a Jackson instance that auto-discovers modules, so Java Time and other modern types just work.
 - **Test-friendly design** – simple APIs, no static singletons, and in-memory stubs included for unit testing.
@@ -52,8 +52,9 @@ jwt:
   refresh:
     key: ${JWT_REFRESH_KEY}
     validity: P7D
-  use-jpa: true
 ```
+
+If you want the toolkit to rehydrate JPA entities, add `@JwtModel(useJpa = true)` to the model. The toolkit will look up the entity via the `@Id` value carried in the token.
 
 ### 3. Inject and use the beans
 
@@ -108,7 +109,6 @@ AccountToken principal =
 | `jwt.access.validity` | Validity of access tokens (`Duration`). | `PT0S` (invalid without override) |
 | `jwt.refresh.key` | HMAC key used for refresh tokens. | _required_ |
 | `jwt.refresh.validity` | Validity of refresh tokens (`Duration`). | `PT0S` |
-| `jwt.use-jpa` | Enables entity lookup via `EntityManager` using `@Id`. | `false` |
 
 ---
 
@@ -120,7 +120,7 @@ AccountToken principal =
 | `JwtInvalidException` | Signature/structure is invalid or verification fails for other reasons. |
 | `JwtProcessingException` | Generic processing error (e.g., null subject during generation). |
 
-When `jwt.use-jpa=true`, the toolkit:
+When a model is annotated with `@JwtModel(useJpa = true)`, the toolkit:
 
 1. Searches for either `jakarta.persistence.EntityManager` or `javax.persistence.EntityManager`.
 2. Finds the first `@Id` field in the model hierarchy.

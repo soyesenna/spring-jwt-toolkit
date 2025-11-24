@@ -15,4 +15,12 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 public @interface JwtModel {
 
+  /**
+   * Enables JPA entity resolution for the annotated model. When set to {@code true}, the toolkit
+   * will attempt to load the entity by its {@code @Id}-annotated field if a JPA
+   * {@code EntityManager} is available.
+   *
+   * @return whether JPA lookups should be attempted for this model
+   */
+  boolean useJpa() default false;
 }

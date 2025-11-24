@@ -34,6 +34,7 @@ public class JwtModelMetadata {
   private final Map<TokenType, Field> subjectFields = new EnumMap<>(TokenType.class);
   private final Map<TokenType, List<JwtClaimFieldMetadata>> claimFields =
       new EnumMap<>(TokenType.class);
+  private final boolean jpaEnabled;
   private final Field jpaIdField;
 
   /**
@@ -43,11 +44,13 @@ public class JwtModelMetadata {
    */
   public JwtModelMetadata(Class<?> modelClass) {
     this.modelClass = modelClass;
-    if (!modelClass.isAnnotationPresent(JwtModel.class)) {
+    JwtModel annotation = modelClass.getAnnotation(JwtModel.class);
+    if (annotation == null) {
       throw new JwtConfigurationException(
           "Class %s is not annotated with @JwtModel".formatted(modelClass.getName())
       );
     }
+    this.jpaEnabled = annotation.useJpa();
 
     try {
       this.constructor = modelClass.getDeclaredConstructor();
@@ -66,7 +69,7 @@ public class JwtModelMetadata {
                 || field.isAnnotationPresent(JwtClaim.class)
     );
 
-    this.jpaIdField = resolveJpaIdField(modelClass);
+    this.jpaIdField = this.jpaEnabled ? resolveJpaIdField(modelClass) : null;
   }
 
   /**
@@ -209,5 +212,12 @@ public class JwtModelMetadata {
    */
   public Field getJpaIdField() {
     return this.jpaIdField;
+  }
+
+  /**
+   * @return whether JPA resolution should be attempted for this model
+   */
+  public boolean isJpaEnabled() {
+    return this.jpaEnabled;
   }
 }

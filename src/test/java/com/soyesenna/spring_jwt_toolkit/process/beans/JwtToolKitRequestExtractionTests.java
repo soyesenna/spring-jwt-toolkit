@@ -31,7 +31,6 @@ class JwtToolKitRequestExtractionTests {
         new JwtModelMetadataRegistry(),
         new JwtTokenSettingsProvider(jwtProperties()),
         new ObjectMapper().findAndRegisterModules(),
-        false,
         null
     );
   }
@@ -109,7 +108,6 @@ class JwtToolKitRequestExtractionTests {
             metadataRegistry,
             tokenSettingsProvider,
             objectMapper,
-            true,
             jpaEntityProvider);
 
     String token = jpaEnabled.generateTokenValue(tokenUser, TokenType.ACCESS);

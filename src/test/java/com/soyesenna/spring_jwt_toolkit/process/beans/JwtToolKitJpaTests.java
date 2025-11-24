@@ -3,8 +3,10 @@ package com.soyesenna.spring_jwt_toolkit.process.beans;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.soyesenna.spring_jwt_toolkit.annotations.JwtModel;
 import com.soyesenna.spring_jwt_toolkit.configuration.JwtProperties;
 import com.soyesenna.spring_jwt_toolkit.enums.TokenType;
+import com.soyesenna.spring_jwt_toolkit.samples.AbstractJpaEntity;
 import com.soyesenna.spring_jwt_toolkit.process.internal.JpaEntityProvider;
 import com.soyesenna.spring_jwt_toolkit.process.internal.JwtModelMetadata;
 import com.soyesenna.spring_jwt_toolkit.process.internal.JwtModelMetadataRegistry;
@@ -23,13 +25,14 @@ import org.junit.jupiter.api.Test;
 class JwtToolKitJpaTests {
 
   /**
-   * Ensures that when {@code use-jpa=true} the toolkit replaces the reflectively populated body
-   * with the entity loaded from the {@link jakarta.persistence.EntityManager}.
+   * Ensures that when models opt into JPA via {@code @JwtModel(useJpa = true)} the toolkit replaces
+   * the reflectively populated body with the entity loaded from the
+   * {@link jakarta.persistence.EntityManager}.
    */
   @Test
   void extractUsesJpaEntityWhenEnabled() {
     JwtModelMetadataRegistry metadataRegistry = new JwtModelMetadataRegistry();
-    JwtProperties properties = jwtProperties(true);
+    JwtProperties properties = jwtProperties();
     JwtTokenSettingsProvider tokenSettingsProvider = new JwtTokenSettingsProvider(properties);
     ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
@@ -51,7 +54,6 @@ class JwtToolKitJpaTests {
             metadataRegistry,
             tokenSettingsProvider,
             objectMapper,
-            true,
             provider);
 
     String token = jwtToolKit.generateTokenValue(tokenUser, TokenType.ACCESS);
@@ -76,12 +78,47 @@ class JwtToolKitJpaTests {
         .isEqualTo("id");
   }
 
+  @Test
+  void extractSkipsJpaWhenModelDoesNotOptIn() {
+    JwtModelMetadataRegistry metadataRegistry = new JwtModelMetadataRegistry();
+    JwtTokenSettingsProvider tokenSettingsProvider = new JwtTokenSettingsProvider(jwtProperties());
+    ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+
+    NonJpaModel tokenUser = new NonJpaModel();
+    tokenUser.setId(55L);
+
+    NonJpaModel persisted = new NonJpaModel();
+    persisted.setId(55L);
+
+    TestEntityManager entityManager = new TestEntityManager();
+    entityManager.persist(persisted.getId(), persisted);
+
+    JpaEntityProvider provider = JpaEntityProvider.fromEntityManager(entityManager);
+    assertThat(provider).isNotNull();
+
+    JwtToolKit jwtToolKit =
+        new JwtToolKit(
+            metadataRegistry,
+            tokenSettingsProvider,
+            objectMapper,
+            provider);
+
+    String token = jwtToolKit.generateTokenValue(tokenUser, TokenType.ACCESS);
+
+    JwtExtractionResult<NonJpaModel> result =
+        jwtToolKit.extract(token, TokenType.ACCESS, NonJpaModel.class);
+
+    assertThat(result.body())
+        .isNotSameAs(persisted)
+        .extracting(NonJpaModel::getId)
+        .isEqualTo(55L);
+  }
+
   /**
    * Creates a {@link JwtProperties} instance suitable for use in unit tests.
    */
-  private JwtProperties jwtProperties(boolean useJpa) {
+  private JwtProperties jwtProperties() {
     JwtProperties properties = new JwtProperties();
-    properties.setUseJpa(useJpa);
     String accessKey =
         Base64.getEncoder().encodeToString("access-secret-key-value-0123456789".getBytes());
     String refreshKey =
@@ -92,4 +129,7 @@ class JwtToolKitJpaTests {
     properties.getRefresh().setValidity(Duration.ofMinutes(5));
     return properties;
   }
+
+  @JwtModel
+  static class NonJpaModel extends AbstractJpaEntity {}
 }

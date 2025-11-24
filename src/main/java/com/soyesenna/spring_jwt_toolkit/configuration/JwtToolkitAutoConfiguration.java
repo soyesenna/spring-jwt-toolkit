@@ -69,7 +69,6 @@ public class JwtToolkitAutoConfiguration {
    * @param metadataRegistry cached metadata
    * @param tokenSettingsProvider provider for signing keys
    * @param objectMapper mapper used for claim conversion
-   * @param properties toolkit configuration, including the {@code use-jpa} flag
    * @param applicationContext allows detection of a hosted {@code EntityManager}
    * @return the toolkit bean the library provides
    */
@@ -79,7 +78,6 @@ public class JwtToolkitAutoConfiguration {
       JwtModelMetadataRegistry metadataRegistry,
       JwtTokenSettingsProvider tokenSettingsProvider,
       ObjectMapper objectMapper,
-      JwtProperties properties,
       ApplicationContext applicationContext
   ) {
     JpaEntityProvider entityProvider =
@@ -88,7 +86,6 @@ public class JwtToolkitAutoConfiguration {
         metadataRegistry,
         tokenSettingsProvider,
         objectMapper,
-        properties.isUseJpa(),
         entityProvider);
   }
 

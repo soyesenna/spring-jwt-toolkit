@@ -7,7 +7,7 @@ import com.soyesenna.spring_jwt_toolkit.enums.TokenType;
 /**
  * Simple model used within tests to generate and extract JWTs while exercising the JPA lookup code.
  */
-@JwtModel
+@JwtModel(useJpa = true)
 public class SampleJpaUser extends AbstractJpaEntity {
 
   @JwtClaim(name = "email", tokenTypes = TokenType.ACCESS)
