@@ -18,6 +18,7 @@ import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import java.lang.reflect.Field;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.EnumMap;
@@ -342,6 +343,66 @@ public class JwtToolKit {
   }
 
   /**
+   * Generates tokens for every {@link TokenType} with custom validity durations, overriding
+   * the configured defaults. Skips entries that lack a configured subject field.
+   *
+   * @param model model instance annotated with {@code @JwtModel}
+   * @param accessValidity custom validity duration for access token
+   * @param refreshValidity custom validity duration for refresh token
+   * @return immutable map of generated tokens keyed by {@link TokenType}
+   */
+  public Map<TokenType, JwtToken> generateTokens(
+      Object model,
+      Duration accessValidity,
+      Duration refreshValidity
+  ) {
+    Objects.requireNonNull(model, "model must not be null");
+    Objects.requireNonNull(accessValidity, "accessValidity must not be null");
+    Objects.requireNonNull(refreshValidity, "refreshValidity must not be null");
+
+    Map<TokenType, JwtToken> tokens = new EnumMap<>(TokenType.class);
+    tokens.put(TokenType.ACCESS, this.generateToken(model, TokenType.ACCESS, accessValidity));
+    tokens.put(TokenType.REFRESH, this.generateToken(model, TokenType.REFRESH, refreshValidity));
+    return Map.copyOf(tokens);
+  }
+
+  /**
+   * Generates an access token with a custom validity duration, overriding the configured default.
+   *
+   * @param model annotated model
+   * @param validity custom validity duration
+   * @return generated access token with custom expiration
+   */
+  public JwtToken generateAccessToken(Object model, Duration validity) {
+    Objects.requireNonNull(model, "model must not be null");
+    return this.generateToken(model, TokenType.ACCESS, validity);
+  }
+
+  /**
+   * Generates a refresh token with a custom validity duration, overriding the configured default.
+   *
+   * @param model annotated model
+   * @param validity custom validity duration
+   * @return generated refresh token with custom expiration
+   */
+  public JwtToken generateRefreshToken(Object model, Duration validity) {
+    Objects.requireNonNull(model, "model must not be null");
+    return this.generateToken(model, TokenType.REFRESH, validity);
+  }
+
+  /**
+   * Generates a single token value with a custom validity duration.
+   *
+   * @param model annotated model instance
+   * @param tokenType desired token classification
+   * @param validity custom validity duration
+   * @return signed JWT value with custom expiration
+   */
+  public String generateTokenValue(Object model, TokenType tokenType, Duration validity) {
+    return this.generateToken(model, tokenType, validity).value();
+  }
+
+  /**
    * Generates a token for the requested type if the model contains a compatible subject field.
    */
   private JwtToken generateToken(Object model, TokenType tokenType) {
@@ -373,6 +434,60 @@ public class JwtToolKit {
 
     Instant issuedAt = Instant.now();
     Instant expiresAt = issuedAt.plus(this.tokenSettingsProvider.getValidity(tokenType));
+    var builder =
+        Jwts.builder()
+            .subject(subject)
+            .issuedAt(java.util.Date.from(issuedAt))
+            .expiration(java.util.Date.from(expiresAt));
+
+    claims.forEach(builder::claim);
+
+    String tokenValue =
+        builder.signWith(this.tokenSettingsProvider.getSigningKey(tokenType)).compact();
+    return new JwtToken(tokenType, tokenValue, issuedAt, expiresAt);
+  }
+
+  /**
+   * Generates a token with a custom validity duration, overriding the configured default.
+   *
+   * @param model annotated model instance
+   * @param tokenType desired token classification
+   * @param validity custom validity duration to use instead of configured default
+   * @return generated token with custom expiration
+   */
+  private JwtToken generateToken(Object model, TokenType tokenType, Duration validity) {
+    Assert.notNull(validity, "validity must not be null");
+    Assert.isTrue(!validity.isNegative() && !validity.isZero(),
+        "validity must be a positive duration");
+
+    JwtModelMetadata metadata = this.metadataRegistry.getMetadata(model.getClass());
+    Field subjectField = metadata.getSubjectField(tokenType);
+    if (subjectField == null) {
+      throw new JwtConfigurationException(
+          "No @JwtSubject field configured for token type %s in %s"
+              .formatted(tokenType, model.getClass().getName())
+      );
+    }
+
+    Object subjectValue = ReflectionUtils.getField(subjectField, model);
+    if (subjectValue == null) {
+      throw new JwtProcessingException(
+          "Subject field %s in %s must not be null when generating %s token"
+              .formatted(subjectField.getName(), model.getClass().getName(), tokenType)
+      );
+    }
+
+    String subject = String.valueOf(subjectValue);
+    Map<String, Object> claims = new HashMap<>();
+    for (JwtClaimFieldMetadata claimMetadata : metadata.getClaimFields(tokenType)) {
+      Object value = ReflectionUtils.getField(claimMetadata.field(), model);
+      if (value != null) {
+        claims.put(claimMetadata.claimName(), this.convertClaimValue(value));
+      }
+    }
+
+    Instant issuedAt = Instant.now();
+    Instant expiresAt = issuedAt.plus(validity);
     var builder =
         Jwts.builder()
             .subject(subject)
