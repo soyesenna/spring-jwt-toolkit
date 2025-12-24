@@ -1,8 +1,10 @@
 package com.soyesenna.spring_jwt_toolkit.process.beans;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.soyesenna.spring_jwt_toolkit.exception.JwtEntityNotFoundException;
 import com.soyesenna.spring_jwt_toolkit.annotations.JwtModel;
 import com.soyesenna.spring_jwt_toolkit.configuration.JwtProperties;
 import com.soyesenna.spring_jwt_toolkit.enums.TokenType;
@@ -112,6 +114,46 @@ class JwtToolKitJpaTests {
         .isNotSameAs(persisted)
         .extracting(NonJpaModel::getId)
         .isEqualTo(55L);
+  }
+
+  /**
+   * Verifies that extraction throws {@link JwtEntityNotFoundException} when JPA is enabled but
+   * the entity cannot be found by its primary key.
+   */
+  @Test
+  void extractThrowsWhenJpaEntityNotFound() {
+    JwtModelMetadataRegistry metadataRegistry = new JwtModelMetadataRegistry();
+    JwtTokenSettingsProvider tokenSettingsProvider = new JwtTokenSettingsProvider(jwtProperties());
+    ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+
+    SampleJpaUser tokenUser = new SampleJpaUser();
+    tokenUser.setId(999L);
+    tokenUser.setEmail("nonexistent@sample.com");
+
+    // Empty EntityManager - no entities persisted
+    TestEntityManager entityManager = new TestEntityManager();
+
+    JpaEntityProvider provider = JpaEntityProvider.fromEntityManager(entityManager);
+    assertThat(provider).isNotNull();
+
+    JwtToolKit jwtToolKit =
+        new JwtToolKit(
+            metadataRegistry,
+            tokenSettingsProvider,
+            objectMapper,
+            provider);
+
+    String token = jwtToolKit.generateTokenValue(tokenUser, TokenType.ACCESS);
+
+    assertThatThrownBy(() -> jwtToolKit.extract(token, TokenType.ACCESS, SampleJpaUser.class))
+        .isInstanceOf(JwtEntityNotFoundException.class)
+        .hasMessageContaining("999")
+        .hasMessageContaining(SampleJpaUser.class.getName())
+        .satisfies(ex -> {
+          JwtEntityNotFoundException notFound = (JwtEntityNotFoundException) ex;
+          assertThat(notFound.getEntityClass()).isEqualTo(SampleJpaUser.class);
+          assertThat(notFound.getIdentifier()).isEqualTo(999L);
+        });
   }
 
   /**

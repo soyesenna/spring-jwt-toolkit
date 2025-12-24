@@ -5,6 +5,7 @@ import com.soyesenna.spring_jwt_toolkit.context.HttpRequestContext;
 import com.soyesenna.spring_jwt_toolkit.context.HttpRequestContextHolder;
 import com.soyesenna.spring_jwt_toolkit.enums.TokenType;
 import com.soyesenna.spring_jwt_toolkit.exception.JwtConfigurationException;
+import com.soyesenna.spring_jwt_toolkit.exception.JwtEntityNotFoundException;
 import com.soyesenna.spring_jwt_toolkit.exception.JwtExpiredException;
 import com.soyesenna.spring_jwt_toolkit.exception.JwtInvalidException;
 import com.soyesenna.spring_jwt_toolkit.exception.JwtProcessingException;
@@ -647,10 +648,13 @@ public class JwtToolKit {
       return candidate;
     }
     Object entity = this.jpaEntityProvider.findEntity(modelClass, idValue).orElse(null);
+    if (entity == null) {
+      throw new JwtEntityNotFoundException(modelClass, idValue);
+    }
     if (modelClass.isInstance(entity)) {
       return entity;
     }
-    return candidate;
+    throw new JwtEntityNotFoundException(modelClass, idValue);
   }
 
   /**
